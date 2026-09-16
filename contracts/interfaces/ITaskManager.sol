@@ -50,7 +50,7 @@ interface ITaskManager {
         uint256   budget,
         bytes     calldata parameters,
         uint256   deadline
-    ) external returns (Task memory task);
+    ) external payable returns (Task memory task);
 
     function submitBid(bytes32 taskId, uint256 fee) external;
     function acceptBid(bytes32 taskId, address agent) external;

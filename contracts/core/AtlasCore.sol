@@ -41,6 +41,11 @@ contract AtlasCore is IAtlasCore {
     uint256 public override protocolVersion;
     bool    public override paused;
 
+    /// @dev Governance authority (multisig/DAO). Can pause the protocol and
+    ///      slash guardians; rotatable via {setGovernor}.
+    address public governor;
+
+
     // ────────────────────────────────
     //  Constructor
     // ────────────────────────────────
@@ -56,6 +61,16 @@ contract AtlasCore is IAtlasCore {
         settlementEngine = ISettlementEngine(_settlementEngine);
         bridge           = IAtlasBridge(_bridge);
         protocolVersion  = 1;
+        governor         = msg.sender;
+    }
+
+    // ────────────────────────────────
+    //  Modifiers
+    // ────────────────────────────────
+
+    modifier onlyGovernor() {
+        require(msg.sender == governor, "AtlasCore: not governor");
+        _;
     }
 
     // ────────────────────────────────
@@ -80,8 +95,7 @@ contract AtlasCore is IAtlasCore {
     }
 
     /// @inheritdoc IAtlasCore
-    function slashGuardian(address guardian, uint256 amount) external override {
-        // Only callable by governance or dispute resolution
+    function slashGuardian(address guardian, uint256 amount) external override onlyGovernor {
         require(guardians[guardian].stake >= amount, "AtlasCore: insufficient stake");
         guardians[guardian].stake -= amount;
         guardians[guardian].tasksSlashed++;
@@ -93,15 +107,25 @@ contract AtlasCore is IAtlasCore {
     // ────────────────────────────────
 
     /// @inheritdoc IAtlasCore
-    function pause() external override {
+    function pause() external override onlyGovernor {
+        require(!paused, "AtlasCore: already paused");
         paused = true;
         emit ProtocolPaused(msg.sender);
     }
 
     /// @inheritdoc IAtlasCore
-    function unpause() external override {
+    function unpause() external override onlyGovernor {
+        require(paused, "AtlasCore: not paused");
         paused = false;
         emit ProtocolUnpaused(msg.sender);
+    }
+
+    /// @notice Transfer governor authority (multisig/DAO rotation).
+    function setGovernor(address newGovernor) external onlyGovernor {
+        require(newGovernor != address(0), "AtlasCore: zero governor");
+        address old = governor;
+        governor = newGovernor;
+        emit GovernorUpdated(old, newGovernor);
     }
 
     /// @inheritdoc IAtlasCore

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {ERC4626} from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -23,7 +24,7 @@ contract AtlasAgentVault is ERC4626 {
 
     // ────────────────────────────────
     //  Events
-    ────────────────────────────────
+    // ────────────────────────────────
 
     event ProposalSubmitted(bytes32 indexed proposalId, bytes data);
     event ProposalExecuted(bytes32 indexed proposalId, bytes result);
@@ -39,7 +40,7 @@ contract AtlasAgentVault is ERC4626 {
         address _agentId,
         string memory _name,
         string memory _symbol
-    ) ERC4626(_asset, _name, _symbol) {
+    ) ERC20(_name, _symbol) ERC4626(_asset) {
         agentId = _agentId;
         performanceFee = 2000; // 20% default
         acceptingDeposits = true;

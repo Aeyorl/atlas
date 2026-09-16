@@ -1,12 +1,22 @@
 # Dependencies
-node_modules/ lib/
+node_modules/
+lib/
 # Build
-out/ artifacts/ cache/ target/ dist/ build/
+out/
+artifacts/
+cache/
+target/
+dist/
+build/
 # Env
-.env .env.local
+.env
+.env.local
 # IDE
-.vscode/ .idea/
+.vscode/
+.idea/
 # OS
 .DS_Store
 # Python
-__pycache__/ *.pyc .venv/
+__pycache__/
+*.pyc
+.venv/
