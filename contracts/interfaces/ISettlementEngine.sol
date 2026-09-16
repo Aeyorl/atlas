@@ -23,4 +23,18 @@ interface ISettlementEngine {
     function settle(bytes32 taskId, bytes calldata verification) external;
     function slash(bytes32 taskId, address agent, uint256 amount) external;
     function getSettlement(bytes32 taskId) external view returns (Settlement memory);
+
+    // ────────────────────────────────
+    //  Escrow plumbing (TaskManager-controlled)
+    // ────────────────────────────────
+
+    /// @notice Receive a task budget forwarded by TaskManager.createTask.
+    function depositEscrow(bytes32 taskId) external payable;
+
+    /// @notice Return the full remaining escrow to the task creator on a
+    ///         failure path (failed task, lost dispute, escrow withdrawal).
+    function refundCreator(bytes32 taskId) external;
+
+    /// @notice Escrow still held for a task.
+    function getEscrow(bytes32 taskId) external view returns (uint256);
 }

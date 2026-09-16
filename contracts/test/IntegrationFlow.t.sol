@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {AgentRegistry} from "../core/AgentRegistry.sol";
 import {TaskManager} from "../core/TaskManager.sol";
+import {SettlementEngine} from "../core/SettlementEngine.sol";
 import {IAgentRegistry} from "../interfaces/IAgentRegistry.sol";
 
 /// @title IntegrationFlowTest
@@ -12,6 +13,7 @@ import {IAgentRegistry} from "../interfaces/IAgentRegistry.sol";
 ///         with reputation outcomes asserted along the way.
 contract IntegrationFlowTest is Test {
     AgentRegistry internal registry;
+    SettlementEngine internal settlement;
     TaskManager internal taskManager;
 
     address internal creator;
@@ -33,8 +35,11 @@ contract IntegrationFlowTest is Test {
     function setUp() public {
         registry = new AgentRegistry();
         governor = makeAddr("governor");
-        taskManager = new TaskManager(address(registry), governor);
+        settlement = new SettlementEngine(governor);
+        taskManager = new TaskManager(address(registry), address(settlement), governor);
         registry.setTaskManager(address(taskManager));
+        vm.prank(governor);
+        settlement.setTaskManager(address(taskManager));
 
         creator = makeAddr("creator");
         analystOwner = makeAddr("analystOwner");

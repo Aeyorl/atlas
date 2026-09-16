@@ -4,11 +4,13 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {AgentRegistry} from "../../contracts/core/AgentRegistry.sol";
 import {TaskManager} from "../../contracts/core/TaskManager.sol";
+import {SettlementEngine} from "../../contracts/core/SettlementEngine.sol";
 import {ITaskManager} from "../../contracts/interfaces/ITaskManager.sol";
 import {IAgentRegistry} from "../../contracts/interfaces/IAgentRegistry.sol";
 
 contract TaskManagerTest is Test {
     AgentRegistry internal registry;
+    SettlementEngine internal settlement;
     TaskManager internal taskManager;
 
     address internal creator;
@@ -31,8 +33,11 @@ contract TaskManagerTest is Test {
     function setUp() public {
         registry = new AgentRegistry();
         governor = makeAddr("governor");
-        taskManager = new TaskManager(address(registry), governor);
+        settlement = new SettlementEngine(governor);
+        taskManager = new TaskManager(address(registry), address(settlement), governor);
         registry.setTaskManager(address(taskManager));
+        vm.prank(governor);
+        settlement.setTaskManager(address(taskManager));
 
         creator = makeAddr("creator");
         agentOwner = makeAddr("agentOwner");
@@ -85,7 +90,8 @@ contract TaskManagerTest is Test {
         assertEq(t.requiredCapabilities.length, 1);
         assertEq(uint256(t.status), uint256(ITaskManager.TaskStatus.Bidding));
         assertEq(taskManager.getEscrow(TASK1), BUDGET);
-        assertEq(address(taskManager).balance, BUDGET);
+        assertEq(address(settlement).balance, BUDGET); // custodied by the engine
+        assertEq(address(taskManager).balance, 0);
         assertEq(taskManager.getTaskCount(), 1);
     }
 
@@ -361,7 +367,7 @@ contract TaskManagerTest is Test {
         ITaskManager.Task memory t = taskManager.getTask(TASK1);
         assertEq(uint256(t.status), uint256(ITaskManager.TaskStatus.Completed));
         assertEq(taskManager.getEscrow(TASK1), 0);
-        assertEq(address(taskManager).balance, 0);
+        assertEq(address(settlement).balance, 0);
 
         IAgentRegistry.AgentRecord memory r = registry.getAgent(AGENT1);
         assertEq(r.totalTasks, 1);
@@ -397,7 +403,7 @@ contract TaskManagerTest is Test {
         taskManager.withdrawEscrow(TASK1);
         assertEq(creator.balance - before, BUDGET);
         assertEq(taskManager.getEscrow(TASK1), 0);
-        assertEq(address(taskManager).balance, 0);
+        assertEq(address(settlement).balance, 0);
     }
 
     function test_WithdrawEscrow_OnlyCreator() public {

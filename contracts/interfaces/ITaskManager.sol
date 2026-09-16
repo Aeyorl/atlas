@@ -62,4 +62,7 @@ interface ITaskManager {
     function getTask(bytes32 taskId)    external view returns (Task memory);
     function getBids(bytes32 taskId)    external view returns (Bid[] memory);
     function getTaskCount()             external view returns (uint256);
+
+    /// @notice Protocol fee rate in basis points, applied by the settlement engine.
+    function protocolFeeBps()           external view returns (uint256);
 }

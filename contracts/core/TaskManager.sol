@@ -3,18 +3,20 @@ pragma solidity ^0.8.24;
 
 import {ITaskManager} from "../interfaces/ITaskManager.sol";
 import {IAgentRegistry} from "../interfaces/IAgentRegistry.sol";
+import {ISettlementEngine} from "../interfaces/ISettlementEngine.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title TaskManager
 /// @notice Manages the lifecycle of agent tasks: creation, bidding, execution,
 ///         verification, dispute, and settlement.
-/// @dev Implements {ITaskManager}. Task budgets are escrowed in native currency
-///      at creation. Bids are restricted to active agents registered in the
-///      {AgentRegistry} that declare every required capability. Settlement pays
-///      the accepted agent (minus the protocol fee), refunds the unspent budget
-///      remainder to the task creator, and pushes a reputation update to the
-///      registry. A dispute window between verification and settlement lets the
-///      creator challenge the result; a governor resolves disputes.
+/// @dev Implements {ITaskManager}. The {SettlementEngine} is the protocol
+///      treasury: task budgets forwarded at creation are custodied there, and
+///      all payouts (agent fee, protocol fee split, creator refunds) are
+///      executed by it. This contract owns only the lifecycle state machine:
+///      bids are restricted to active agents registered in the {AgentRegistry}
+///      that declare every required capability; a governor verifies results;
+///      a dispute window between verification and settlement lets the creator
+///      challenge the result; a governor resolves disputes.
 contract TaskManager is ITaskManager, ReentrancyGuard {
     // ────────────────────────────────
     //  Errors
@@ -22,6 +24,7 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
 
     error TaskManager__ZeroRegistry();
     error TaskManager__ZeroGovernor();
+    error TaskManager__ZeroSettlementEngine();
     error TaskManager__ZeroTaskId();
     error TaskManager__TaskExists();
     error TaskManager__UnknownTask();
@@ -46,7 +49,6 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     error TaskManager__DisputeWindowClosed();
     error TaskManager__TaskNotFailed();
     error TaskManager__FeeTooHigh();
-    error TaskManager__PaymentFailed();
 
     // ────────────────────────────────
     //  Types
@@ -71,9 +73,14 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     /// @notice Agent registry used for bid eligibility and reputation updates.
     IAgentRegistry public immutable registry;
 
-    /// @notice Governor: verifies task results, resolves disputes, collects
-    ///         the protocol fee. In production this should be governed by a
-    ///         multisig/DAO or the Guardian committee.
+    /// @notice Settlement engine — the treasury that custodies task escrow and
+    ///         executes all payouts on this contract's instruction.
+    ISettlementEngine public immutable settlementEngine;
+
+    /// @notice Governor: verifies task results, resolves disputes, and sets
+    ///         the protocol fee rate (the fee itself is distributed by the
+    ///         engine). In production this should be a multisig/DAO or the
+    ///         Guardian committee.
     address public governor;
 
     /// @notice Protocol fee in basis points, taken from the agent fee on settlement.
@@ -87,9 +94,6 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     /// @dev taskId => bids in submission order
     mapping(bytes32 => Bid[]) private _bids;
 
-    /// @dev taskId => escrowed budget still held by this contract
-    mapping(bytes32 => uint256) private _escrow;
-
     /// @dev taskId => bidder => agentId the bidder bids with (resolved at submitBid)
     mapping(bytes32 => mapping(address => bytes32)) private _bidAgentIds;
 
@@ -102,17 +106,18 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
 
     event TaskSettled(bytes32 indexed taskId, address indexed agent, uint256 agentFee);
     event TaskFailed(bytes32 indexed taskId);
-    event EscrowRefunded(bytes32 indexed taskId, uint256 amount);
     event ProtocolFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps);
 
     // ────────────────────────────────
     //  Constructor
     // ────────────────────────────────
 
-    constructor(address _registry, address _governor) {
+    constructor(address _registry, address _settlementEngine, address _governor) {
         if (_registry == address(0)) revert TaskManager__ZeroRegistry();
+        if (_settlementEngine == address(0)) revert TaskManager__ZeroSettlementEngine();
         if (_governor == address(0)) revert TaskManager__ZeroGovernor();
         registry = IAgentRegistry(_registry);
+        settlementEngine = ISettlementEngine(_settlementEngine);
         governor = _governor;
         protocolFeeBps = 250; // 2.5%
     }
@@ -147,8 +152,11 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
             createdAt: block.timestamp,
             deadline: deadline
         });
-        _escrow[taskId] = msg.value;
         _taskCounter++;
+
+        // Forward the budget to the treasury. Reverts bubble up on failure,
+        // so a task is never recorded without its escrow.
+        settlementEngine.depositEscrow{value: msg.value}(taskId);
 
         emit TaskCreated(taskId, msg.sender, budget);
         return _tasks[taskId];
@@ -246,9 +254,10 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     }
 
     /// @notice Settle a verified task after the dispute window has elapsed.
-    /// @dev Pays the accepted agent (minus protocol fee), refunds the unused
-    ///      budget remainder to the creator, and records a successful
-    ///      reputation update in the registry.
+    /// @dev Marks the task Completed, then instructs the {SettlementEngine}
+    ///      to pay the accepted agent (minus protocol fee), split the fee,
+    ///      and refund the unspent budget remainder to the creator. A
+    ///      successful reputation update is recorded in the registry.
     function settleTask(bytes32 taskId) external override nonReentrant {
         Task storage t = _requireTask(taskId);
         if (t.status != TaskStatus.Verifying) revert TaskManager__NotVerifying();
@@ -257,7 +266,10 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         }
 
         t.status = TaskStatus.Completed;
-        _payout(taskId, t);
+        settlementEngine.settle(taskId, "");
+
+        emit TaskSettled(taskId, t.assignedAgent, _acceptedFee(taskId, t.assignedAgent));
+        _recordReputation(taskId, t.assignedAgent, true);
     }
 
     // ────────────────────────────────
@@ -265,20 +277,19 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     // ────────────────────────────────
 
     /// @notice Resolve a disputed task. If `agentValid`, settle in the agent's
-    ///         favor; otherwise refund the full escrow to the creator and mark
-    ///         the task Failed.
+    ///         favor (via the engine); otherwise refund the full escrow to the
+    ///         creator and mark the task Failed.
     function resolveDispute(bytes32 taskId, bool agentValid) external onlyGovernor nonReentrant {
         Task storage t = _requireTask(taskId);
         if (t.status != TaskStatus.Disputed) revert TaskManager__NotDisputed();
 
         if (agentValid) {
             t.status = TaskStatus.Completed;
-            _payout(taskId, t);
+            settlementEngine.settle(taskId, "");
+            emit TaskSettled(taskId, t.assignedAgent, _acceptedFee(taskId, t.assignedAgent));
         } else {
             t.status = TaskStatus.Failed;
-            uint256 escrow = _escrow[taskId];
-            _escrow[taskId] = 0;
-            _refund(taskId, t.creator, escrow);
+            settlementEngine.refundCreator(taskId);
             _recordReputation(taskId, t.assignedAgent, false);
             emit TaskFailed(taskId);
         }
@@ -290,17 +301,15 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         if (t.status != TaskStatus.Failed) revert TaskManager__TaskNotFailed();
         if (msg.sender != t.creator) revert TaskManager__NotCreator();
 
-        uint256 escrow = _escrow[taskId];
-        if (escrow == 0) revert TaskManager__ZeroEscrow();
-        _escrow[taskId] = 0;
-        _refund(taskId, t.creator, escrow);
+        settlementEngine.refundCreator(taskId);
     }
 
     // ────────────────────────────────
     //  Governor Admin
     // ────────────────────────────────
 
-    /// @notice Update the protocol fee (bounded to MAX_PROTOCOL_FEE_BPS).
+    /// @notice Update the protocol fee rate (bounded to MAX_PROTOCOL_FEE_BPS).
+    ///         Distribution of the collected fee is governed by the engine.
     function setProtocolFeeBps(uint256 newFeeBps) external onlyGovernor {
         if (newFeeBps > MAX_PROTOCOL_FEE_BPS) revert TaskManager__FeeTooHigh();
         uint256 old = protocolFeeBps;
@@ -338,9 +347,9 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         return _bidAgentIds[taskId][bidder];
     }
 
-    /// @notice Escrow still held for a task.
+    /// @notice Escrow still held for a task (custodied by the engine).
     function getEscrow(bytes32 taskId) external view returns (uint256) {
-        return _escrow[taskId];
+        return settlementEngine.getEscrow(taskId);
     }
 
     // ────────────────────────────────
@@ -387,30 +396,6 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         return true;
     }
 
-    /// @dev Pay the accepted agent its fee (minus protocol fee) and refund the
-    ///      unspent escrow remainder to the creator. Zeroes the escrow first.
-    function _payout(bytes32 taskId, Task storage t) internal {
-        uint256 escrow = _escrow[taskId];
-        _escrow[taskId] = 0;
-
-        uint256 fee = _acceptedFee(taskId, t.assignedAgent);
-        uint256 protocolCut = (fee * protocolFeeBps) / 10_000;
-        uint256 agentCut = fee - protocolCut;
-
-        (bool paidAgent, ) = t.assignedAgent.call{value: agentCut}("");
-        if (!paidAgent) revert TaskManager__PaymentFailed();
-
-        if (protocolCut > 0) {
-            (bool paidProtocol, ) = governor.call{value: protocolCut}("");
-            if (!paidProtocol) revert TaskManager__PaymentFailed();
-        }
-
-        _refund(taskId, t.creator, escrow - fee);
-
-        emit TaskSettled(taskId, t.assignedAgent, fee);
-        _recordReputation(taskId, t.assignedAgent, true);
-    }
-
     /// @dev The fee of the accepted bid for the assigned agent.
     function _acceptedFee(bytes32 taskId, address agent) internal view returns (uint256) {
         Bid[] storage bids = _bids[taskId];
@@ -420,13 +405,6 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
             }
         }
         revert TaskManager__BidNotFound();
-    }
-
-    function _refund(bytes32 taskId, address to, uint256 amount) internal {
-        if (amount == 0) return;
-        (bool ok, ) = to.call{value: amount}("");
-        if (!ok) revert TaskManager__PaymentFailed();
-        emit EscrowRefunded(taskId, amount);
     }
 
     /// @dev Reputation must never block settlement payments; a misconfigured
