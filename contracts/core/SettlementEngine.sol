@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {ISettlementEngine} from "../interfaces/ISettlementEngine.sol";
 import {ITaskManager} from "../interfaces/ITaskManager.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title SettlementEngine
@@ -18,8 +19,13 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 ///      - TaskManager.resolveDispute(agentValid=false) and withdrawEscrow
 ///        trigger {refundCreator}, returning the full escrow on failure paths
 ///        (guardian-resolved dispute outcomes included).
-///      `verification` bytes are accepted now but unused in V1 — reserved for
-///      the Phase 2 ZK verifier payload.
+///      ZK verification (Phase 2): when a verifier is configured via
+///      {setVerifier}, `settle` requires a valid ZK execution proof for the
+///      task before paying out. The proof arrives in the `verification`
+///      payload as `abi.encode(proof, publicInputs)` and is checked against
+///      the pluggable {IVerifier}; `publicInputs[0]` must equal the task id,
+///      binding every proof to exactly one task. With no verifier configured
+///      (V1 mode), settlement proceeds on governor verification alone.
 contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     // ────────────────────────────────
     //  Errors
@@ -40,6 +46,10 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     error SettlementEngine__TaskNotTerminal();
     error SettlementEngine__GuardianShareTooHigh();
     error SettlementEngine__PaymentFailed();
+    error SettlementEngine__VerifierNotConfigured();
+    error SettlementEngine__VerificationPayloadMalformed();
+    error SettlementEngine__ProofTaskMismatch();
+    error SettlementEngine__InvalidProof();
 
     // ────────────────────────────────
     //  Modifiers
@@ -87,6 +97,13 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     /// @dev taskId => bonder => bonded amount
     mapping(bytes32 => mapping(address => uint256)) private _bonds;
 
+    /// @notice Pluggable ZK proof verifier (Atlas Verifier). Zero address =
+    ///         disabled: settle() then trusts governor verification alone.
+    IVerifier public verifier;
+
+    /// @dev taskId => whether a valid ZK proof was verified at settle time
+    mapping(bytes32 => bool) private _proofVerified;
+
     // ────────────────────────────────
     //  Events (extensions to ISettlementEngine)
     // ────────────────────────────────
@@ -96,6 +113,8 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     event BondReleased(bytes32 indexed taskId, address indexed agent, uint256 amount);
     event GuardianTreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
     event GuardianShareUpdated(uint256 oldBps, uint256 newBps);
+    event VerifierUpdated(address indexed oldVerifier, address indexed newVerifier);
+    event ProofVerified(bytes32 indexed taskId, address indexed verifier);
 
     // ────────────────────────────────
     //  Constructor
@@ -130,6 +149,16 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
         uint256 old = guardianShareBps;
         guardianShareBps = newBps;
         emit GuardianShareUpdated(old, newBps);
+    }
+
+    /// @notice Configure the ZK proof verifier used to gate settlement.
+    /// @dev Pass the zero address to disable proof enforcement (V1 mode).
+    ///      Implementations are invoked via staticcall from settle(), so they
+    ///      must be side-effect free.
+    function setVerifier(address newVerifier) external onlyGovernor {
+        address old = address(verifier);
+        verifier = IVerifier(newVerifier);
+        emit VerifierUpdated(old, newVerifier);
     }
 
     /// @notice Transfer governor authority (multisig/DAO rotation).
@@ -171,14 +200,16 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     ///         agent, split the protocol fee, refund the budget remainder,
     ///         and release the assigned agent's bond.
     /// @dev Only the TaskManager may call this, after it has enforced the
-    ///      dispute window / dispute resolution rules.
+    ///      dispute window / dispute resolution rules. When a ZK verifier is
+    ///      configured, `verification` must carry
+    ///      `abi.encode(proof, publicInputs)` for a valid execution proof
+    ///      whose first public input is `uint256(taskId)`.
     function settle(bytes32 taskId, bytes calldata verification) external override onlyTaskManager nonReentrant {
-        // `verification` reserved for the Phase 2 ZK verifier payload.
-        verification;
-
         // Settled check first: settle() zeroes escrow, so a replay would
         // otherwise surface as the less precise empty-escrow error.
         if (_settlements[taskId].settled) revert SettlementEngine__AlreadySettled();
+
+        _verifyProof(taskId, verification);
 
         uint256 escrow = _escrow[taskId];
         if (escrow == 0) revert SettlementEngine__UnknownOrEmptyEscrow();
@@ -300,6 +331,11 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
         return _bonds[taskId][agent];
     }
 
+    /// @notice Whether settlement of `taskId` was gated by a valid ZK proof.
+    function hasProofVerified(bytes32 taskId) external view returns (bool) {
+        return _proofVerified[taskId];
+    }
+
     // ────────────────────────────────
     //  Internal
     // ────────────────────────────────
@@ -318,5 +354,31 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     function _pay(address to, uint256 amount) internal {
         (bool ok, ) = to.call{value: amount}("");
         if (!ok) revert SettlementEngine__PaymentFailed();
+    }
+
+    /// @dev ZK proof gate for settle(). No-op while no verifier is configured
+    ///      (V1 governor-trust mode). When configured, `verification` must be
+    ///      `abi.encode(bytes proof, uint256[] publicInputs)` and the proof
+    ///      must verify with publicInputs[0] == uint256(taskId), so a proof
+    ///      accepted for one task can never settle another.
+    function _verifyProof(bytes32 taskId, bytes calldata verification) internal {
+        if (address(verifier) == address(0)) return;
+
+        // Explicit guard: abi.decode on empty data would revert generically.
+        if (verification.length == 0) revert SettlementEngine__VerificationPayloadMalformed();
+
+        bytes memory proof;
+        uint256[] memory publicInputs;
+        (proof, publicInputs) = abi.decode(verification, (bytes, uint256[]));
+
+        if (publicInputs.length == 0 || publicInputs[0] != uint256(taskId)) {
+            revert SettlementEngine__ProofTaskMismatch();
+        }
+
+        bool valid = verifier.verifyProof(proof, publicInputs);
+        if (!valid) revert SettlementEngine__InvalidProof();
+
+        _proofVerified[taskId] = true;
+        emit ProofVerified(taskId, address(verifier));
     }
 }

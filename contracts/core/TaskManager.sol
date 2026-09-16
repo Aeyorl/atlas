@@ -100,6 +100,10 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     /// @dev taskId => timestamp of successful verification (0 = not verified)
     mapping(bytes32 => uint256) private _verifiedAt;
 
+    /// @dev taskId => execution proof submitted by the assigned agent at
+    ///      completion (forwarded to the settlement engine's ZK verifier)
+    mapping(bytes32 => bytes) private _proofs;
+
     // ────────────────────────────────
     //  Events (extensions to ITaskManager)
     // ────────────────────────────────
@@ -217,8 +221,10 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         if (msg.sender != t.assignedAgent) revert TaskManager__NotAssignedAgent();
         if (block.timestamp > t.deadline) revert TaskManager__DeadlinePassed();
 
-        // `proof` is forwarded off-chain (Verifier integration is Phase 2);
-        // it is kept in calldata so the interface and event trail stay stable.
+        // `proof` is stored for settlement: the {SettlementEngine} forwards
+        // it to its pluggable ZK verifier when one is configured. Kept as a
+        // blob here — proof-system-specific formats stay off this contract.
+        _proofs[taskId] = proof;
         t.status = TaskStatus.Verifying;
 
         emit TaskCompleted(taskId, result);
@@ -266,7 +272,7 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         }
 
         t.status = TaskStatus.Completed;
-        settlementEngine.settle(taskId, "");
+        settlementEngine.settle(taskId, _proofs[taskId]);
 
         emit TaskSettled(taskId, t.assignedAgent, _acceptedFee(taskId, t.assignedAgent));
         _recordReputation(taskId, t.assignedAgent, true);
@@ -285,7 +291,7 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
 
         if (agentValid) {
             t.status = TaskStatus.Completed;
-            settlementEngine.settle(taskId, "");
+            settlementEngine.settle(taskId, _proofs[taskId]);
             emit TaskSettled(taskId, t.assignedAgent, _acceptedFee(taskId, t.assignedAgent));
         } else {
             t.status = TaskStatus.Failed;
@@ -345,6 +351,12 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     /// @notice AgentId a given bidder bid with on a task (for off-chain indexing).
     function getBidAgentId(bytes32 taskId, address bidder) external view returns (bytes32) {
         return _bidAgentIds[taskId][bidder];
+    }
+
+    /// @notice Execution proof submitted at completion (for off-chain indexing
+    ///         and dispute tooling).
+    function getProof(bytes32 taskId) external view returns (bytes memory) {
+        return _proofs[taskId];
     }
 
     /// @notice Escrow still held for a task (custodied by the engine).
