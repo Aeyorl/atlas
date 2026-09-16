@@ -8,12 +8,17 @@
 </p>
 
 <p align="center">
-  <a href="https://robinhoodchain.blockscout.com"><img src="https://img.shields.io/badge/Robinhood%20Chain-4663-FF6B35?style=flat-square" alt="Robinhood Chain"></a>
   <a href="#"><img src="https://img.shields.io/badge/Atlas%20SDK-v0.1.3-3B82F6?style=flat-square" alt="Version"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Docs-docs.atlassdk.io-8B5CF6?style=flat-square" alt="Docs"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=flat-square" alt="License"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Release-v0.1.3-F59E0B?style=flat-square" alt="Release"></a>
 </p>
+
+> **Implementation status:** the on-chain coordination layer is implemented and tested —
+> AgentRegistry, TaskManager (bidding + dispute lifecycle), SettlementEngine (escrow, fees,
+> bonds, slashing), ZK-verified settlement (pluggable verifier), and the AtlasBridge
+> cross-ecosystem message bus, with a full Foundry test suite. The SDK, CLI, runtime,
+> and oracle directories are scaffolding. See
+> [docs/architecture/CONTRACTS.md](./docs/architecture/CONTRACTS.md) and the
+> [Roadmap](#-roadmap) for details.
 
 ---
 
@@ -131,14 +136,15 @@ The interface. SDKs, CLI, and APIs for developers to build on Atlas.
 
 Atlas is **natively multi-ecosystem**, with first-class support for:
 
-| Ecosystem | Support Level | Key Integration |
-|-----------|--------------|-----------------|
-| **Robinhood Chain** | ⭐ Primary | Native settlement, Guardian staking |
-| **Ethereum / EVM** | ✅ Full | Standard bridge, Universal proof verification |
-| **Base** | ✅ Full | Fast finality bridge, Coinbase ecosystem |
-| **Arbitrum** | ✅ Full | AnyTrust bridge, low-cost coordination |
-| **Optimism** | ✅ Full | Superchain bridge, OP interop |
-| **Virtuals Protocol** | ⭐ Primary | Agent identity, native agent composability |
+| Ecosystem | Support Level | Mechanism |
+|-----------|--------------|-----------|
+| **Robinhood Chain** | ⭐ Target | First-class ecosystem constant + bridge instance |
+| **EVM (Ethereum, Base, Arbitrum, OP)** | ⭐ Target | Ecosystem constant + bridge instance |
+| **Virtuals Protocol** | ⭐ Target | Ecosystem constant + bridge instance |
+
+*Support means the protocol deploys its registry, settlement, and bridge per ecosystem
+(`ATLAS_ECOSYSTEM` in the deploy script). Chain-specific connectors and relayer
+infrastructure are future work.*
 
 ### 🤖 Agent-Native Architecture
 
@@ -149,12 +155,14 @@ Atlas is **natively multi-ecosystem**, with first-class support for:
 
 ### 🔐 Economic Security
 
-Atlas uses a **Proof-of-Stake Guardian Network** (inspired by EigenLayer AVS) where:
+Atlas's on-chain economic security today:
 
-- Guardians stake **ATLAS** tokens to secure the network
-- Valid execution proofs earn rewards
-- Invalid or malicious executions result in slashing
-- Cross-ecosystem messages are verified by randomly selected Guardian committees
+- Guardians stake **ATLAS** to secure the network (`MIN_GUARDIAN_STAKE` = 10,000)
+- Malicious guardians are slashable by governance (50% per slash event)
+- Cross-ecosystem messages are attested by a 5-member guardian committee with a
+  **2-of-5 quorum** on the bridge
+- Execution results can be settled against **ZK proofs** via a pluggable on-chain
+  verifier, with proofs bound to the task id to prevent replay
 
 ### 🧩 Composable Workflows
 
@@ -228,11 +236,9 @@ interface IAgentRegistry {
         uint256   minFee               // Minimum fee per task
     ) external returns (AgentRecord memory);
     
-    function declareReputation(
-        bytes32 agentId,
-        bytes32 previousWorkId,
-        uint256  successRate           // 0-10000 basis points
-    ) external;
+    // Called by the TaskManager on task outcomes — reputation is
+    // earned from executed work, not self-declared
+    function updateReputation(bytes32 agentId, bool taskSuccess) external;
 }
 ```
 
@@ -268,57 +274,47 @@ interface ITaskManager {
 
 ## 🛠️ Technical Stack
 
-| Layer | Technology | Ecosystem |
-|-------|-----------|-----------|
-| **Smart Contracts** | Solidity ^0.8.24, Foundry | Robinhood Chain, EVM |
-| **Agent Identity** | ERC-7231 (Agent NFT) | Virtuals, Cross-chain |
-| **Vault Standard** | ERC-4626 | All Ecosystems |
-| **Cross-chain** | Atlas Bridge + Wormhole integration | RH Chain ↔ EVM ↔ Virtuals |
-| **Oracle** | Atlas Guardian Network + EigenLayer AVS | All Ecosystems |
-| **Runtime** | Python 3.12+, WASM sandbox | Off-chain |
-| **SDK** | Python, TypeScript, Rust | Developer Layer |
-| **CLI** | Rust (clap) | Developer Layer |
-| **ZK Proofs** | Groth16, Circom | Verification Layer |
-| **Messaging** | XMTP, Hermes Protocol | Agent Communication |
-| **Storage** | IPFS, Arweave | Proof Storage |
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| **Smart Contracts** | Solidity ^0.8.24, Foundry, OpenZeppelin v5 | ✅ Implemented |
+| **Agent Registry** | On-chain identity + capability discovery | ✅ Implemented |
+| **Task Engine** | Bidding, verification, 3-day dispute window | ✅ Implemented |
+| **Settlement** | Escrow custody, protocol fees, bonds, slashing | ✅ Implemented |
+| **Cross-chain** | AtlasBridge attested bus (2-of-5 guardian quorum) | ✅ Implemented |
+| **ZK Proofs** | Pluggable `IVerifier` (Groth16-ready) | ✅ Wired into settlement; circuits pending |
+| **Vault Standard** | ERC-4626 (`AtlasAgentVault`) | ✅ Implemented |
+| **Python SDK** | Local task/agent objects | 🚧 Scaffolding |
+| **CLI** | Python (argparse) | 🚧 Scaffolding |
+| **Runtime / Oracle / Relayer** | Directory stubs | 📋 Planned |
 
 ---
 
 ## 🛣️ Roadmap
 
-### Phase 0 — Foundation *(Completed 2025 Q4)* ✅
-- [x] Atlas Core smart contracts on Robinhood Chain testnet
-- [x] Agent Registry MVP with capability declarations
-- [x] ERC-4626 Vault integration
-- [x] Initial SDK prototype (Python)
+### Phase 0 — Core Contracts ✅ *(current state of this repo)*
+- [x] AgentRegistry — agent identity, capability declarations, discovery queries
+- [x] TaskManager — create → bid → accept → complete → verify → dispute → settle
+- [x] SettlementEngine — escrow custody, protocol fees, bonds, slashing
+- [x] AtlasBridge — attested cross-ecosystem message bus (2-of-5 quorum)
+- [x] ZK verification plumbing — pluggable `IVerifier`, task-id-bound proofs
+- [x] Full Foundry test suite (139 tests) and deploy script with post-deploy wiring
 
-### Phase 1 — Coordination *(Completed 2026 Q1)* ✅
-- [x] Task Engine with bidding and settlement
-- [x] Atlas Verifier with basic proof verification
-- [x] Reputation Ledger v1
-- [x] CLI tool for agent management
-- [x] Deployed on Robinhood Chain mainnet (Feb 2026)
+### Phase 1 — Deployment & ZK Circuits 🚧
+- [ ] Groth16 Circom circuits and concrete verifier contracts
+- [ ] Relayer service for the bridge outbox/inbox
+- [ ] Testnet deployments (Robinhood Chain, an EVM L2, Virtuals)
+- [ ] CI coverage beyond the contract job (SDK/CLI tests)
 
-### Phase 2 — Expansion *(Completed 2026 Q2)* ✅
-- [x] Atlas Bridge — EVM integration (Ethereum, Base, Arbitrum)
-- [x] Virtuals Protocol native compatibility
-- [x] Guardian Network launch with ATLAS staking
-- [x] Cross-ecosystem task routing
-- [x] Security audit by Trail of Bits (April 2026)
+### Phase 2 — Developer Layer 📋
+- [ ] Python / TypeScript SDKs wired to the deployed contracts
+- [ ] CLI with contract-backed commands
+- [ ] REST + GraphQL read API
+- [ ] Reputation engine and guardian committee selection
 
-### Phase 3 — Scale *(2026 Q3 — Current)* 🚧
-- [ ] ZK-attested execution proofs
+### Phase 3 — Maturity 📋
 - [ ] Multi-agent workflow composition
-- [ ] Atlas API (REST + GraphQL)
-- [ ] TypeScript SDK stable release
-- [ ] Rust SDK alpha
-- [ ] Global Guardian committee expansion
-
-### Phase 4 — Maturity *(2026 Q4)* 📋
 - [ ] Agent-to-agent negotiation automation
-- [ ] Liquid staking for ATLAS
 - [ ] Decentralized governance via ATLAS DAO
-- [ ] RWA integration for agent-managed assets
 - [ ] Cross-ecosystem reputation portability
 
 ---
@@ -327,58 +323,29 @@ interface ITaskManager {
 
 ```
 atlas/
-├── contracts/          # ⭐ Smart contracts (Solidity, Foundry)
-│   ├── core/           # Core protocol contracts
-│   ├── interfaces/     # Standard interfaces
-│   ├── libraries/      # Shared libraries
-│   └── test/           # Foundry tests
-├── runtime/            # ⚙️ Agent execution runtime
-│   ├── executor/       # Task execution sandbox
-│   ├── verifier/       # Execution proof verification
-│   └── relayer/       # Cross-ecosystem message relayer
-├── bridge/             # 🌉 Cross-ecosystem bridge
-│   ├── connectors/     # Chain-specific connectors
-│   └── adapters/       # Protocol adapters (Wormhole, LayerZero)
-├── oracle/             # 📡 Guardian oracle network
-│   ├── feeds/          # Data feed implementations
-│   └── aggregators/    # Multi-source data aggregation
-├── registry/           # 📋 Agent identity & reputation
-│   ├── identity/       # Agent registration logic
-│   └── reputation/     # Reputation scoring engine
-├── sdk/                # 📦 Developer SDKs
-│   ├── python/         # Python SDK
-│   ├── typescript/     # TypeScript SDK
-│   └── rust/           # Rust SDK (alpha)
-├── cli/                # 🖥️ Command-line interface
-│   ├── commands/       # CLI command implementations
-│   └── utils/          # Shared CLI utilities
-├── api/                # 🌐 API server
-│   ├── rest/           # REST API endpoints
-│   └── graphql/        # GraphQL schema & resolvers
+├── contracts/          # ⭐ Smart contracts (Solidity, Foundry) — implemented
+│   ├── core/           # AgentRegistry, TaskManager, SettlementEngine,
+│   │                   # AtlasCore, AtlasBridge, AtlasAgentVault
+│   ├── interfaces/     # IAgentRegistry, ITaskManager, ISettlementEngine,
+│   │                   # IAtlasBridge, IAtlasCore, IVerifier
+│   ├── libraries/      # AtlasTypes, AtlasMath
+│   └── test/           # Foundry test suites (139 tests)
+├── scripts/
+│   └── deploy/         # DeployAtlas.s.sol — full stack + post-deploy wiring
 ├── docs/               # 📖 Documentation
-│   ├── whitepaper/     # Technical whitepaper
-│   ├── architecture/   # Architecture diagrams
+│   ├── architecture/   # OVERVIEW, CONTRACTS, SECURITY
 │   ├── api/            # API reference
 │   └── guides/         # Developer guides
-├── examples/           # 💡 Reference implementations
-│   ├── evm/            # EVM agent examples
-│   ├── virtuals/       # Virtuals integration examples
-│   └── robinhood/      # Robinhood Chain examples
-├── scripts/            # 🔧 DevOps scripts
-│   ├── deploy/         # Deployment scripts
-│   ├── verify/         # Contract verification
-│   └── migrate/        # Migration utilities
-├── tests/              # 🧪 Test suites
-│   ├── unit/           # Unit tests
-│   ├── integration/    # Integration tests
-│   └── e2e/            # End-to-end tests
-├── config/             # ⚙️ Configuration
-│   ├── mainnet/        # Mainnet environment
-│   ├── testnet/        # Testnet environment
-│   └── local/          # Local development
-└── .github/            # 🤖 GitHub configuration
-    ├── workflows/      # CI/CD pipelines
-    └── ISSUE_TEMPLATE/ # Issue templates
+├── sdk/python/         # 🚧 Local client/task/agent objects (no chain wiring yet)
+├── cli/                # 🚧 Argparse demo CLI
+├── bridge/connectors/  # 🚧 Python connector stubs
+├── runtime/            # 📋 Executor / verifier / relayer stubs
+├── oracle/             # 📋 Stub
+├── registry/           # 📋 Stub
+├── examples/           # 💡 Python examples per ecosystem
+├── config/             # ⚙️ atlas.toml
+└── .github/
+    └── workflows/      # CI (forge build + forge test)
 ```
 
 ---
@@ -387,87 +354,51 @@ atlas/
 
 ### Prerequisites
 
+- [Foundry](https://book.getfoundry.sh/) for the smart contracts
+- Python 3.11+ (optional, for the SDK/CLI scaffolding)
+
+### Build & Test the Contracts
+
 ```bash
-# Install Foundry (for Solidity development)
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-
-# Install Atlas CLI
-curl -sSL https://atlasprotocol.io/install.sh | bash
-
-# Or build from source
 git clone https://github.com/atlas-protocol/atlas.git
 cd atlas
-cargo build --release -p atlas-cli
-```
 
-### Register Your First Agent
+# Dependencies are not vendored
+forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts
 
-```bash
-# 1. Set up your environment
-atlas init --ecosystem robinhood-chain
-atlas login --private-key <your-key>
-
-# 2. Register an agent
-atlas agent register \
-  --name "My Trading Agent" \
-  --capabilities "TRADE,ANALYZE" \
-  --min-fee 10.0 \
-  --ecosystem robinhood-chain
-
-# Output:
-# ✅ Agent registered!
-# Agent ID: 0x7a3b...c9f2
-# View at: https://atlasprotocol.io/agents/0x7a3b...c9f2
-
-# 3. Check your agent's reputation
-atlas reputation get --agent 0x7a3b...c9f2
-```
-
-### Deploy a Coordination Contract
-
-```bash
-# Using Foundry
-cd contracts
 forge build
-
-# Deploy to Robinhood Chain
-forge create src/core/AtlasCore.sol:AtlasCore \
-  --rpc-url https://rpc.mainnet.chain.robinhood.com \
-  --private-key <your-key> \
-  --constructor-args "<guardian-address>" \
-  --verify
-
-# Output:
-# ✅ Deployed!
-# Address: 0xFa1E...68f
+forge test
 ```
 
-### Submit a Cross-Ecosystem Task
+### Deploy the Coordination Stack
+
+```bash
+export DEPLOYER_KEY=0x...
+# One of: robinhood-chain | evm | virtuals (defaults to evm)
+export ATLAS_ECOSYSTEM=robinhood-chain
+
+forge script scripts/deploy/DeployAtlas.s.sol \
+  --rpc-url <your-rpc> \
+  --broadcast --verify
+```
+
+The script deploys AgentRegistry, SettlementEngine, TaskManager, AtlasBridge, and
+AtlasCore, then resolves the circular wiring (`setTaskManager`, `setCore`).
+
+### Try the Python SDK (local objects)
 
 ```python
-# Using Atlas Python SDK
-from atlas import AtlasClient
+# From the repo root — the SDK creates local task objects;
+# on-chain wiring is Phase 2 work
+from sdk.python.client import AtlasClient
 
-client = AtlasClient(
-    private_key="0x...",
-    ecosystem="robinhood-chain"
-)
-
-# Create a task that spans ecosystems
+client = AtlasClient(ecosystem="robinhood-chain")
 task = client.create_task(
     required_capabilities=["DATA_FETCH", "ANALYSIS"],
-    budget=50.0,  # ATLAS tokens
-    parameters={
-        "source_ecosystem": "virtuals",
-        "target_ecosystem": "evm",
-        "data_type": "market_sentiment",
-        "execution": "trade_signal"
-    }
+    budget=50.0,
+    parameters={"data_type": "market_sentiment"},
 )
-
-print(f"Task created: {task.task_id}")
-# Task ID: 0x8f2c...a41d
+print(task.status)  # TaskStatus.CREATED
 ```
 
 ---
@@ -500,13 +431,10 @@ graph LR
 5. The execution agent performs the swap on Moonwell or Uniswap
 6. Settlement happens on Robinhood Chain; all agents are paid
 
-```bash
-# Deploy this workflow
-atlas workflow deploy examples/robinhood/trading-pipeline.yaml
-
-# Monitor execution
-atlas workflow status --id 0x9d4e...b7f2
-```
+A Python sketch of this pipeline lives at `examples/robinhood/trading_pipeline.py`.
+Workflow orchestration is Phase 2+ work — today the contracts cover the per-task
+lifecycle: discover (registry) → bid (task engine) → execute → prove (verifier) →
+settle (settlement engine), with results relayed across ecosystems by the bridge.
 
 ---
 
@@ -516,30 +444,33 @@ Atlas is secured by a **multi-layered economic security model**:
 
 ### Layer 1: Guardian Network (Economic Security)
 
-Guardians stake ATLAS tokens and are randomly selected to verify cross-ecosystem messages and agent execution proofs.
+Guardians stake ATLAS tokens and attest to cross-ecosystem messages on the bridge.
 
-- **Staking requirement**: Minimum 10,000 ATLAS to become a Guardian
-- **Validation reward**: 0.1% of task value per verification
-- **Slashing conditions**: Signing invalid proofs, double-signing, collusion
-- **Committee size**: Minimum 5 Guardians per verification round
+- **Staking requirement**: 10,000 ATLAS minimum (`MIN_GUARDIAN_STAKE`)
+- **Slashing**: Governance can slash 50% of a guardian's stake
+- **Committee**: 5-member guardian committee; bridge delivery requires a 2-of-5
+  attestation quorum
 
 ### Layer 2: ZK Proof Verification (Cryptographic Security)
 
-All agent execution results are accompanied by ZK proofs (Groth16) that can be verified trustlessly on-chain.
+When a verifier is configured by governance, settlement requires a valid execution
+proof checked on-chain.
 
-- **Prover**: Agent generates proof during execution
-- **Verifier**: Atlas Verifier contract on each ecosystem
-- **Public Inputs**: task_id, result_hash, agent_id
-- **Proof Size**: ~250 bytes per execution
+- **Interface**: Pluggable `IVerifier` — concrete Groth16 circuits are Phase 1 work
+- **Public inputs**: bound to the task id, so a proof accepted for one task cannot
+  settle another (replay-proof by construction)
+- **Fallback mode**: with no verifier set, settlement trusts governor verification
+  (V1 default)
 
 ### Layer 3: Economic Bonds (Agent Security)
 
-Agents posting tasks must bond ATLAS tokens proportional to task value:
+Agents post per-task bonds with the SettlementEngine before executing:
 
-- **Task bond**: 5% of task budget (minimum 10 ATLAS)
-- **Slashing**: 50% of bond if agent submits invalid task
-- **Dispute window**: 24 hours for challenge
-- **Arbitration**: Guardian committee votes on disputes
+- **Bonds**: flat amounts posted via `postBond`; auto-released on successful settlement
+- **Slashing**: governance can convert an agent's bond into failure compensation
+  for the task creator
+- **Dispute window**: 3 days after verification, during which guardians can dispute
+- **Arbitration**: the governor resolves disputes; lost disputes refund the creator
 
 ### Layer 4: Ecosystem-Level Security
 
@@ -589,21 +520,8 @@ Yes. Any agent, on any supported ecosystem, can register on the Atlas Registry a
 
 ## 📊 Release History
 
-| Version | Date | Description |
-|---------|------|-------------|
-| **v0.1.3** | 2026-07-22 | Guardian API stabilization, bug fixes |
-| **v0.1.2** | 2026-07-18 | Atlas Bridge EVM integration complete |
-| **v0.1.1** | 2026-07-10 | Virtuals Protocol compatibility patch |
-| **v0.1.0** | 2026-07-01 | Beta release — Core protocol on Robinhood Chain |
-| **v0.0.9** | 2026-06-20 | Reputation Ledger v1, Staking UI |
-| **v0.0.8** | 2026-06-05 | Guardian committee election mechanism |
-| **v0.0.7** | 2026-05-22 | CLI v1, SDK Python Alpha |
-| **v0.0.6** | 2026-05-08 | Task Engine with multi-agent bidding |
-| **v0.0.5** | 2026-04-15 | Oracle network with 4 data feeds |
-| **v0.0.4** | 2026-03-20 | Atlas Bridge MVP (RH Chain ↔ Base) |
-| **v0.0.3** | 2026-02-15 | Agent Registry with capability declarations |
-| **v0.0.2** | 2026-01-10 | Foundry project scaffolding, core interfaces |
-| **v0.0.1** | 2025-11-20 | Initial architecture design & whitepaper |
+Release history lives in [CHANGELOG.md](./CHANGELOG.md). The deployed contracts
+carry `VERSION = keccak256("atlas-core-v0.1.3")` on `AtlasCore`.
 
 ---
 
