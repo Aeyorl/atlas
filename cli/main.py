@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Atlas CLI — Command-line interface for the Atlas Protocol."""
-import argparse, sys
+import argparse
+
 
 def main():
     parser = argparse.ArgumentParser(description="Atlas Protocol CLI")

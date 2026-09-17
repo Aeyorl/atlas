@@ -1,7 +1,7 @@
 """Task model for Atlas Protocol SDK."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+
 
 class TaskStatus(Enum):
     PENDING = "pending"; CREATED = "created"; BIDDING = "bidding"
@@ -12,8 +12,8 @@ class TaskStatus(Enum):
 class Task:
     task_id: str; required_capabilities: list[str]; budget: float
     parameters: dict; ecosystem: str; status: TaskStatus = TaskStatus.PENDING
-    assigned_agent: Optional[str] = None; created_at: Optional[str] = None
-    deadline: Optional[int] = None; result: Optional[dict] = None
+    assigned_agent: str | None = None; created_at: str | None = None
+    deadline: int | None = None; result: dict | None = None
 
     def assign(self, agent_id: str) -> None:
         self.assigned_agent = agent_id; self.status = TaskStatus.EXECUTING

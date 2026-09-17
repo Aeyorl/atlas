@@ -1,12 +1,12 @@
 """Agent model for Atlas Protocol SDK."""
 from dataclasses import dataclass, field
-from typing import Optional
+
 
 @dataclass
 class Agent:
     agent_id: str; owner: str; name: str; uri: str
     capabilities: list[str] = field(default_factory=list)
-    execution_wallet: Optional[str] = None; min_fee: float = 0.0
+    execution_wallet: str | None = None; min_fee: float = 0.0
     active: bool = True; total_tasks: int = 0; successful_tasks: int = 0
     reputation_score: float = 0.0; ecosystem: str = "robinhood-chain"
 

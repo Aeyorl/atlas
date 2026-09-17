@@ -1,7 +1,9 @@
 """Task executor — sandboxed agent execution environment."""
-from dataclasses import dataclass, field
-from hashlib import sha256
 import json
+from dataclasses import dataclass
+from hashlib import sha256
+from typing import ClassVar
+
 
 @dataclass
 class ExecutionResult:
@@ -9,7 +11,7 @@ class ExecutionResult:
     output: dict; proof: str = ""; gas_used: int = 0; status: str = "pending"
 
 class TaskExecutor:
-    SUPPORTED_ECOSYSTEMS = {"robinhood-chain", "evm", "virtuals"}
+    SUPPORTED_ECOSYSTEMS: ClassVar[set[str]] = {"robinhood-chain", "evm", "virtuals"}
     def __init__(self, sandbox_type: str = "wasm"):
         self.sandbox_type = sandbox_type
         self._results: dict[str, ExecutionResult] = {}

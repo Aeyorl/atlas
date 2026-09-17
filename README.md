@@ -300,8 +300,8 @@ interface ITaskManager {
 - [x] Full Foundry test suite (139 tests) and deploy script with post-deploy wiring
 
 ### Phase 1 — Deployment & ZK Circuits 🚧
+- [x] Relayer service for the bridge outbox/inbox (`runtime/relayer/`)
 - [ ] Groth16 Circom circuits and concrete verifier contracts
-- [ ] Relayer service for the bridge outbox/inbox
 - [ ] Testnet deployments (Robinhood Chain, an EVM L2, Virtuals)
 - [ ] CI coverage beyond the contract job (SDK/CLI tests)
 
@@ -339,7 +339,8 @@ atlas/
 ├── sdk/python/         # 🚧 Local client/task/agent objects (no chain wiring yet)
 ├── cli/                # 🚧 Argparse demo CLI
 ├── bridge/connectors/  # 🚧 Python connector stubs
-├── runtime/            # 📋 Executor / verifier / relayer stubs
+├── runtime/            # ⭐ Relayer (implemented) + executor/verifier stubs
+│   └── relayer/        # Watches bridge outbox, attests, delivers cross-chain
 ├── oracle/             # 📋 Stub
 ├── registry/           # 📋 Stub
 ├── examples/           # 💡 Python examples per ecosystem
@@ -355,7 +356,7 @@ atlas/
 ### Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/) for the smart contracts
-- Python 3.11+ (optional, for the SDK/CLI scaffolding)
+- Python 3.11+ (optional, for the SDK/CLI scaffolding and relayer)
 
 ### Build & Test the Contracts
 
@@ -399,6 +400,19 @@ task = client.create_task(
     parameters={"data_type": "market_sentiment"},
 )
 print(task.status)  # TaskStatus.CREATED
+```
+
+### Run the Cross-Chain Relayer
+
+The relayer watches `MessageSent` events on the bridge outbox, recovers the
+message nonce by re-deriving the canonical message id, attests (if the key is a
+guardian), and delivers once the guardian quorum is met:
+
+```bash
+# relayer.json: [{"chains": [{"name", "chain_id", "rpc_url",
+#               "ecosystem", "bridge_address", "start_block"}]}]
+export ATLAS_RELAYER_KEY=0x...   # relayer/guardian funding key
+python -m runtime.relayer relayer.json
 ```
 
 ---
