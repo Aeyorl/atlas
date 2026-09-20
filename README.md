@@ -15,9 +15,11 @@
 > **Implementation status:** the on-chain coordination layer is implemented and tested —
 > AgentRegistry, TaskManager (bidding + dispute lifecycle), SettlementEngine (escrow, fees,
 > bonds, slashing), ZK-verified settlement (pluggable verifier), and the NiveBridge
-> cross-ecosystem message bus, with a full Foundry test suite. The SDK, CLI, runtime,
-> and oracle directories are scaffolding. A Python bridge relayer and a two-chain
-> end-to-end relay demo (`scripts/e2e/relay_e2e.py`) are implemented. See
+> cross-ecosystem message bus, with a full Foundry test suite. Implemented off-chain:
+> a Python bridge relayer, a two-chain end-to-end relay demo (`scripts/e2e/relay_e2e.py`),
+> the contract-backed Python SDK chain layer (`sdk/python/chain.py`), and a contract-backed
+> CLI (`cli/`). The executor/verifier runtimes, oracle, and TypeScript/Rust SDKs remain
+> scaffolding. See
 > [docs/architecture/CONTRACTS.md](./docs/architecture/CONTRACTS.md) and the
 > [Roadmap](#-roadmap) for details.
 
@@ -284,9 +286,10 @@ interface ITaskManager {
 | **Cross-chain** | NiveBridge attested bus (2-of-5 guardian quorum) | ✅ Implemented |
 | **ZK Proofs** | Pluggable `IVerifier` (Groth16-ready) | ✅ Wired into settlement; circuits pending |
 | **Vault Standard** | ERC-4626 (`NiveAgentVault`) | ✅ Implemented |
-| **Python SDK** | Local task/agent objects | 🚧 Scaffolding |
-| **CLI** | Python (argparse) | 🚧 Scaffolding |
-| **Runtime / Oracle / Relayer** | Directory stubs | 📋 Planned |
+| **Python SDK** | Contract-backed `ChainClient` (reads/writes, zero deps) + local objects | ✅ Implemented |
+| **CLI** | Contract-backed commands: agent / task / escrow / bridge / guardian | ✅ Implemented |
+| **Relayer** | Outbox watch → attest → deliver (`runtime/relayer/`) | ✅ Implemented |
+| **Runtime / Oracle** | Executor & verifier runtimes, oracle directory | 📋 Planned |
 
 ---
 
@@ -309,8 +312,9 @@ interface ITaskManager {
 - [ ] Production trusted-setup ceremony and circuit audit
 
 ### Phase 2 — Developer Layer 📋
-- [ ] Python / TypeScript SDKs wired to the deployed contracts
-- [ ] CLI with contract-backed commands
+- [x] Python SDK wired to the deployed contracts (`sdk/python/chain.py` — reads, signed writes, bridge sends)
+- [x] CLI with contract-backed commands (`cli/main.py`)
+- [ ] TypeScript / Rust SDKs wired to the deployed contracts
 - [ ] REST + GraphQL read API
 - [ ] Reputation engine and guardian committee selection
 
@@ -339,8 +343,8 @@ nive/
 │   ├── architecture/   # OVERVIEW, CONTRACTS, SECURITY
 │   ├── api/            # API reference
 │   └── guides/         # Developer guides
-├── sdk/python/         # 🚧 Local client/task/agent objects (no chain wiring yet)
-├── cli/                # 🚧 Argparse demo CLI
+├── sdk/python/         # ⭐ Contract-backed ChainClient + local objects
+├── cli/                # ⭐ Contract-backed CLI (agent/task/escrow/bridge/guardian)
 ├── bridge/connectors/  # 🚧 Python connector stubs
 ├── runtime/            # ⭐ Relayer (implemented) + executor/verifier stubs
 │   └── relayer/        # Watches bridge outbox, attests, delivers cross-chain
@@ -349,7 +353,7 @@ nive/
 ├── examples/           # 💡 Python examples per ecosystem
 ├── config/             # ⚙️ nive.toml
 └── .github/
-    └── workflows/      # CI (forge build + forge test)
+    └── workflows/      # CI (forge build/test, pytest matrix, ruff)
 ```
 
 ---
@@ -359,7 +363,7 @@ nive/
 ### Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/) for the smart contracts
-- Python 3.11+ (optional, for the SDK/CLI scaffolding and relayer)
+- Python 3.11+ (optional, for the SDK, CLI, and relayer)
 
 ### Build & Test the Contracts
 
@@ -389,21 +393,96 @@ forge script scripts/deploy/DeployNive.s.sol \
 The script deploys AgentRegistry, SettlementEngine, TaskManager, NiveBridge, and
 NiveCore, then resolves the circular wiring (`setTaskManager`, `setCore`).
 
-### Try the Python SDK (local objects)
+### Drive the Contracts from Python (ChainClient)
+
+`sdk/python/chain.py` gives the Python SDK a contract-backed layer: reads and
+signed writes against the deployed Nive contracts, using the same zero-dependency
+primitives as the relayer (stdlib secp256k1 signing, pure-Python keccak,
+hand-rolled ABI encoding — no web3). Reads need only an RPC URL + contract
+addresses; writes additionally need `NIVE_PRIVATE_KEY`.
 
 ```python
-# From the repo root — the SDK creates local task objects;
-# on-chain wiring is Phase 2 work
-from sdk.python.client import NiveClient
+# From the repo root
+import os
+from sdk.python.chain import ChainClient, capability_word, id_from_seed
 
-client = NiveClient(ecosystem="robinhood-chain")
-task = client.create_task(
-    required_capabilities=["DATA_FETCH", "ANALYSIS"],
-    budget=50.0,
-    parameters={"data_type": "market_sentiment"},
+os.environ.update(
+    NIVE_RPC_URL="http://127.0.0.1:8545",
+    NIVE_REGISTRY_ADDRESS="0x…",          # forge deploy output
+    NIVE_TASK_MANAGER_ADDRESS="0x…",
+    NIVE_SETTLEMENT_ADDRESS="0x…",
+    NIVE_PRIVATE_KEY="0x…",               # writes only
 )
-print(task.status)  # TaskStatus.CREATED
+client = ChainClient.from_env()           # or ChainClient.from_config("nive.json")
+
+# Reads — plain JSON-RPC calls, decoded into dicts
+client.agent_count()
+agents = client.search_by_capability(capability_word("TRADE"))
+task = client.get_task(id_from_seed("task-1"))
+client.escrow(id_from_seed("task-1"))
+
+# Writes — every call signs, sends, and waits for the on-chain receipt
+client.register_agent(
+    agent_id=id_from_seed("my-agent"),
+    uri="https://my-agent.example.com/meta.json",
+    capabilities=[capability_word("TRADE")],
+)
+receipt = client.create_task(
+    task_id=id_from_seed("task-1"),
+    required_capabilities=[capability_word("TRADE")],
+    budget_wei=10**18,                    # escrowed as msg.value
+    parameters=b'{"pair":"BTC/USD"}',
+)
+print(receipt.tx_hash, receipt.block, receipt.gas_used)
+
+# Cross-ecosystem message via NiveBridge — returns the canonical message id
+message_id = client.send_bridge_message("virtuals", b'{"hello":"world"}')
 ```
+
+The governor-only flow (`verify_task`, `dispute_task`) and guardian staking
+(`register_guardian`) are on the same client. Contract addresses live in
+`NIVE_*_ADDRESS` env vars or a `nive.json` config; the private key always comes
+from the environment, never from a config file.
+
+(Prefer to stay off-chain? `sdk.python.client.NiveClient` still builds local
+task objects without any chain connection.)
+
+### Use the CLI
+
+`cli/main.py` is contract-backed too — every command maps to an on-chain call:
+
+```bash
+# One-time: write a nive.json template, then fill the addresses from forge deploy
+python cli/main.py init
+
+# Writes need a key; reads work without one
+export NIVE_PRIVATE_KEY=0x...
+
+# Agents: register, inspect, discover
+python cli/main.py agent register --seed my-agent --uri https://my-agent.example.com \
+  --capabilities TRADE ANALYZE --min-fee 0.5
+python cli/main.py agent get --seed my-agent
+python cli/main.py agent search --capability TRADE
+python cli/main.py agent count
+
+# Task lifecycle: create (escrows the budget) → bids → accept → complete → settle
+python cli/main.py task create --seed task-1 --capabilities TRADE \
+  --budget-ether 1 --parameters '{"pair":"BTC/USD"}'
+python cli/main.py task bids --seed task-1
+python cli/main.py task bid --seed task-1 --fee-ether 0.75
+python cli/main.py task accept --seed task-1 --agent 0x…
+python cli/main.py task complete --seed task-1 --result "signal: buy"
+python cli/main.py escrow --seed task-1
+python cli/main.py task settle --seed task-1     # prints the fee breakdown
+
+# Bridge messaging + guardians
+python cli/main.py bridge send --target virtuals --payload "hello"
+python cli/main.py guardian register --stake-ether 10000
+python cli/main.py guardian count
+```
+
+`--id 0x…` replaces `--seed …` anywhere (a seed is keccak-hashed into the bytes32
+id). Point at a different node or config with `--rpc` / `--config`.
 
 ### Run the Cross-Chain Relayer
 
