@@ -7,7 +7,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 /// @title AgentRegistry
 /// @notice On-chain registry for AI agent identity and capability declarations.
 /// @dev Implements {IAgentRegistry}. Every agent must register here before
-///      participating in the Atlas protocol. Reputation updates are restricted
+///      participating in the Nive protocol. Reputation updates are restricted
 ///      to the protocol's TaskManager so that only executed task outcomes can
 ///      mutate `totalTasks` / `successfulTasks`.
 contract AgentRegistry is IAgentRegistry, AccessControl {

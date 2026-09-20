@@ -1,6 +1,6 @@
 """Entry point: `python -m runtime.relayer <config.json>`.
 
-Requires ATLAS_RELAYER_KEY (the relayer's funding/guardian key) unless the
+Requires NIVE_RELAYER_KEY (the relayer's funding/guardian key) unless the
 config file sets `private_key` per chain. Testnet-grade: the key stays in an
 env var; production deployments should swap in a KMS-backed signer.
 """
@@ -12,7 +12,7 @@ import signal
 import sys
 
 from .config import load_config
-from .service import AtlasRelayer, Signer
+from .service import NiveRelayer, Signer
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,16 +29,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 2
 
-    key = os.environ.get("ATLAS_RELAYER_KEY")
+    key = os.environ.get("NIVE_RELAYER_KEY")
     signer = Signer(key) if key else None
     if signer is None:
         print(
-            "warning: ATLAS_RELAYER_KEY not set — running in observe-only mode "
+            "warning: NIVE_RELAYER_KEY not set — running in observe-only mode "
             "(no attestations, no deliveries)",
             file=sys.stderr,
         )
 
-    relayer = AtlasRelayer(config, signer=signer)
+    relayer = NiveRelayer(config, signer=signer)
 
     def _shutdown(_sig: int, _frame: object) -> None:
         print("[relayer] shutting down…")

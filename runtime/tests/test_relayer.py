@@ -1,4 +1,4 @@
-"""Tests for the AtlasBridge relayer (offline; no RPC node required).
+"""Tests for the NiveBridge relayer (offline; no RPC node required).
 
 Covers the cryptographic and protocol-critical pieces the service depends on:
 keccak-256, RFC 6979 secp256k1 signing + EIP-155 recovery, RLP, ABI encoding,
@@ -15,9 +15,11 @@ import unittest
 from typing import Any
 
 from runtime.relayer.chain import (
+    BridgeReader,
     JsonRpcClient,
     _decode_outbox,
     _to_checksum_address,
+    decode_get_message,
     keccak256,
     parse_message_sent_logs,
 )
@@ -29,8 +31,8 @@ from runtime.relayer.config import (
     load_config,
 )
 from runtime.relayer.service import (
-    AtlasRelayer,
     MessageState,
+    NiveRelayer,
     Signer,
     _checksum_address,
     _rfc6979_k,
@@ -87,6 +89,37 @@ class TestSigning(unittest.TestCase):
         raw = signer.sign_tx(chain_id=31337, nonce=0, to="0x" + "ab" * 20, data=b"\xde\xad")
         self.assertTrue(raw.startswith(b"\xf8"))
 
+    def test_signed_tx_decodes_as_valid_legacy_transaction(self) -> None:
+        # A signed tx must be RLP([nonce, gasPrice, gas, to, value, data, v,
+        # r, s]) — r and s as separate minimal-integer items. This is the
+        # exact shape every node's decoder expects; a round-trip re-sign
+        # check alone cannot catch a malformed envelope.
+        signer = Signer("0x" + "02" * 32)
+        raw = signer.sign_tx(chain_id=31337, nonce=7, to="0x" + "cd" * 20,
+                             data=b"\xbe\xef", value=10**15, gas=120_000,
+                             gas_price=2_000_000_000)
+        fields = _rlp_decode(raw)
+        self.assertIsInstance(fields, list)
+        self.assertEqual(len(fields), 9)
+        self.assertEqual(int.from_bytes(fields[0], "big"), 7)          # nonce
+        self.assertEqual(int.from_bytes(fields[1], "big"), 2_000_000_000)
+        self.assertEqual(int.from_bytes(fields[2], "big"), 120_000)
+        self.assertEqual(fields[3], bytes.fromhex("cd" * 20))          # to
+        self.assertEqual(int.from_bytes(fields[4], "big"), 10**15)     # value
+        self.assertEqual(fields[5], b"\xbe\xef")                       # data
+        v = int.from_bytes(fields[6], "big")
+        r = int.from_bytes(fields[7], "big")
+        s = int.from_bytes(fields[8], "big")
+        # EIP-155: v = {0,1} + 35 + 2*chain_id (parity depends on k's y)
+        self.assertIn(v, (35 + 2 * 31337, 35 + 2 * 31337 + 1))
+        self.assertGreater(r, 0)
+        self.assertLess(r, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141)
+        self.assertGreater(s, 0)
+        self.assertLess(s, 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141)
+        # Signature halves must be minimal-length integers, not 32-byte blobs.
+        self.assertLessEqual(len(fields[7]), 32)
+        self.assertLessEqual(len(fields[8]), 32)
+
     def test_rlp(self) -> None:
         self.assertEqual(_rlp_encode(b""), b"\x80")
         self.assertEqual(_rlp_encode(0), b"\x80")
@@ -99,15 +132,84 @@ class TestSigning(unittest.TestCase):
         self.assertEqual(_rlp_encode(b"x" * 60), b"\xb8<x" + b"x" * 59)  # 60 bytes: long form
 
 
-def _recover_address_from_signed(signer: Signer, chain_id: int, nonce: int) -> str:
-    """Recover the signer address from a signed tx to validate EIP-155 math."""
-    from runtime.relayer.service import _GX, _GY, _point_mul
+def _rlp_decode(data: bytes):
+    """Minimal RLP decoder (test helper): returns the first item and its
+    encoded length as (item, consumed). Nested lists become Python lists of
+    byte strings / nested lists."""
+    def _item(buf: bytes, pos: int):
+        if pos >= len(buf):
+            raise ValueError("rlp: truncated")
+        b = buf[pos]
+        if b < 0x80:                       # single byte, itself
+            return buf[pos:pos + 1], pos + 1
+        if b < 0xB8:                       # short string
+            n = b - 0x80
+            return buf[pos + 1:pos + 1 + n], pos + 1 + n
+        if b < 0xC0:                       # long string
+            n = b - 0xB7
+            ln = int.from_bytes(buf[pos + 1:pos + 1 + n], "big")
+            start = pos + 1 + n
+            return buf[start:start + ln], start + ln
+        if b < 0xF8:                       # short list
+            n = b - 0xC0
+            end = pos + 1 + n
+            items, p = [], pos + 1
+            while p < end:
+                it, p = _item(buf, p)
+                items.append(it)
+            return items, end
+        n = b - 0xF7                       # long list
+        ln = int.from_bytes(buf[pos + 1:pos + 1 + n], "big")
+        end = pos + 1 + n + ln
+        items, p = [], pos + 1 + n
+        while p < end:
+            it, p = _item(buf, p)
+            items.append(it)
+        return items, end
+    item, consumed = _item(data, 0)
+    if consumed != len(data):
+        raise ValueError("rlp: trailing bytes")
+    return item
 
-    # Re-derive public key from the private key the way eth_do_sign would be
-    # verified on-chain: ecrecover(keccak(unsigned), v, r, s) == address.
-    # Simplified: recompute pubkey, assert address matches signer's.
-    pub = _point_mul(signer.d, (_GX, _GY))
-    return "0x" + keccak256(pub[0].to_bytes(32, "big") + pub[1].to_bytes(32, "big"))[-40:].hex()
+
+def _recover_address_from_signed(signer: Signer, chain_id: int, nonce: int) -> str:
+    """Genuinely ecrecover the address from a signed tx (EIP-155 math)."""
+    from runtime.relayer.service import (
+        _GX,
+        _GY,
+        _N,
+        _P,
+        _point_add,
+        _point_mul,
+        _rlp_encode,
+    )
+
+    raw = signer.sign_tx(chain_id=chain_id, nonce=nonce,
+                         to="0x" + "ab" * 20, data=b"")
+    fields = _rlp_decode(raw)
+    v = int.from_bytes(fields[6], "big")
+    r = int.from_bytes(fields[7], "big")
+    s = int.from_bytes(fields[8], "big")
+    recid = v - 35 - chain_id * 2
+    if recid not in (0, 1):
+        raise ValueError(f"bad recid {recid}")
+    # EIP-155: the signing payload is the tx with the (v, r, s) tail
+    # REPLACED by [chain_id, 0, 0] — not a suffix truncation (the encoded
+    # bytes of the two tails differ).
+    unsigned = _rlp_encode(fields[0:6] + [chain_id, 0, 0])
+    z = int.from_bytes(keccak256(unsigned), "big")
+    # x = r, y from parity. Recovery algebra (from s = k⁻¹(z + r·d) and
+    # R = kG):  Q = (s/r)·R − (z/r)·G.
+    y_sq = (pow(r, 3, _P) + 7) % _P
+    y = pow(y_sq, (_P + 1) // 4, _P)
+    if pow(y, 2, _P) != y_sq:
+        raise ValueError("r is not an x-coordinate on the curve")
+    if (y % 2) != recid:
+        y = _P - y
+    r_inv = pow(r, -1, _N)
+    q = _point_add(_point_mul(s * r_inv % _N, (r, y)),
+                   _point_mul((-z) * r_inv % _N, (_GX, _GY)))
+    return "0x" + keccak256(q[0].to_bytes(32, "big") + q[1].to_bytes(32, "big"))[-20:].hex()
 
 
 # ────────────────────────────────
@@ -174,11 +276,14 @@ class TestDecoding(unittest.TestCase):
         sender_raw = bytes.fromhex("1111111111111111111111111111111111111111")
         payload = b"cross-chain!"
         sent_at = 1_700_000_000
-        # Solidity getter encoding of OutboxMessage(target, sender, payload, sentAt)
+        # Solidity getter encoding of a returned struct is a one-element
+        # tuple: [0x20 wrapper offset][struct head][struct tail], with the
+        # payload offset relative to the struct start (word 1).
         data = (
-            target
+            (32).to_bytes(32, "big")             # ABI v2 wrapper offset
+            + target
             + sender_raw.rjust(32, b"\x00")
-            + (128).to_bytes(32, "big")          # payload offset (relative to tuple)
+            + (128).to_bytes(32, "big")          # payload offset (relative to struct)
             + sent_at.to_bytes(32, "big")
             + len(payload).to_bytes(32, "big")
             + payload.ljust(32, b"\x00")
@@ -188,6 +293,84 @@ class TestDecoding(unittest.TestCase):
         self.assertEqual(sender, _checksum_address("0x" + sender_raw.hex()))
         self.assertEqual(bytes.fromhex(payload_hex.removeprefix("0x")), payload)
         self.assertEqual(decoded_at, sent_at)
+
+    # ── getMessage (inbox record) ────────────────────────────────
+
+    @staticmethod
+    def _inbox_response(message_id: bytes, source_eco: bytes, target_eco: bytes,
+                        payload: bytes, sender_raw: bytes, delivered: bool) -> str:
+        """ABI-encode a getMessage() return the way the Solidity getter does."""
+        data = (
+            (32).to_bytes(32, "big")               # ABI v2 wrapper offset
+            + message_id
+            + source_eco
+            + target_eco
+            + (192).to_bytes(32, "big")            # payload offset (rel. to struct)
+            + sender_raw.rjust(32, b"\x00")
+            + (1 if delivered else 0).to_bytes(32, "big")
+            + len(payload).to_bytes(32, "big")
+            + payload.ljust((len(payload) + 31) // 32 * 32, b"\x00")
+        )
+        return "0x" + data.hex()
+
+    def test_decode_get_message_delivered(self) -> None:
+        mid = keccak256(b"mid")
+        src, tgt = keccak256(b"evm"), keccak256(b"virtuals")
+        sender_raw = bytes.fromhex("2222222222222222222222222222222222222222")
+        payload = b'{"type":"agent-task"}'
+        resp = self._inbox_response(mid, src, tgt, payload, sender_raw, True)
+        record = decode_get_message(resp)
+        self.assertEqual(record["message_id"], "0x" + mid.hex())
+        self.assertEqual(record["source_ecosystem"], "0x" + src.hex())
+        self.assertEqual(record["target_ecosystem"], "0x" + tgt.hex())
+        self.assertEqual(record["sender"], _checksum_address("0x" + sender_raw.hex()))
+        self.assertTrue(record["delivered"])
+        self.assertEqual(
+            bytes.fromhex(str(record["payload"]).removeprefix("0x")), payload)
+
+    def test_decode_get_message_stub(self) -> None:
+        """A not-yet-delivered record carries an empty payload and delivered=0."""
+        resp = self._inbox_response(keccak256(b"none"), b"\x00" * 32, b"\x00" * 32,
+                                    b"", b"\x00" * 20, False)
+        record = decode_get_message(resp)
+        self.assertFalse(record["delivered"])
+        self.assertEqual(record["payload"], "0x")
+
+    def test_is_delivered_reads_flag_not_payload_tail(self) -> None:
+        """Regression: is_delivered must read struct word 5, not the last word.
+
+        The old implementation read raw[-32:], which lands in the payload
+        tail: it returned False for every delivered message whose payload
+        doesn't end in word 1, and True for undelivered ones whose payload
+        does. BridgeReader.is_delivered now decodes the struct properly.
+        """
+        mid, src, tgt = keccak256(b"m"), keccak256(b"a"), keccak256(b"b")
+        sender_raw = b"\x33" * 20
+
+        class _StubClient:
+            response: str = ""
+
+            def call_contract(self, to: str, data: str,
+                              block: int | None = None) -> str:
+                return self.response
+
+        reader_client = _StubClient()
+        reader = BridgeReader(reader_client, "0x" + "aa" * 20, 31337)
+        message_id = "0x" + mid.hex()
+
+        # Delivered, payload's last word != 1 — old code returned False.
+        reader_client.response = self._inbox_response(
+            mid, src, tgt, b"hello world", sender_raw, True)
+        self.assertTrue(reader.is_delivered(message_id))
+
+        # Undelivered, payload's last word == 1 — old code returned True.
+        reader_client.response = self._inbox_response(
+            mid, src, tgt, b"\x00" * 31 + b"\x01", sender_raw, False)
+        self.assertFalse(reader.is_delivered(message_id))
+
+        # Malformed response is treated as not delivered, not an error.
+        reader_client.response = "0x1234"
+        self.assertFalse(reader.is_delivered(message_id))
 
 
 # ────────────────────────────────
@@ -245,7 +428,7 @@ BRIDGE_B = "0x" + "bb" * 20  # target chain bridge
 
 
 class FakeChainNode:
-    """Emulates the JSON-RPC surface of one chain running an AtlasBridge."""
+    """Emulates the JSON-RPC surface of one chain running an NiveBridge."""
 
     def __init__(self, chain_id: int, ecosystem: str, bridge: str):
         self.chain_id = chain_id
@@ -311,8 +494,11 @@ class FakeChainNode:
                 if record is None:
                     return "0x"
                 payload = record["payload"]
+                # ABI v2: returned struct is wrapped in a one-element tuple
+                # (word0 = 0x20), payload offset relative to struct start.
                 return "0x" + (
-                    bytes.fromhex(record["target"][2:]).rjust(32, b"\x00")
+                    (32).to_bytes(32, "big")
+                    + bytes.fromhex(record["target"][2:]).rjust(32, b"\x00")
                     + bytes.fromhex(record["sender"][2:]).rjust(32, b"\x00")
                     + (128).to_bytes(32, "big")
                     + record["sentAt"].to_bytes(32, "big")
@@ -330,6 +516,9 @@ class FakeChainNode:
                 raise RuntimeError("tx rejected")
             self.sent_raw.append(params[0])
             return "0x" + keccak256(params[0].encode()).hex()
+        if method == "eth_getTransactionReceipt":
+            # Fake node mines instantly with status success (0x1).
+            return {"status": "0x1", "transactionHash": params[0]}
         raise AssertionError(f"unexpected rpc method {method}")
 
 
@@ -355,7 +544,7 @@ class TestRelayerStateMachine(unittest.TestCase):
             for c in config.chains
         ]
         config = RelayerConfig(chains=tuned)
-        self.relayer = AtlasRelayer(config, signer=self.signer)
+        self.relayer = NiveRelayer(config, signer=self.signer)
         # Patch clients to hit the fake nodes.
         self._orig_client = JsonRpcClient
 
@@ -383,7 +572,8 @@ class TestRelayerStateMachine(unittest.TestCase):
                     tag = "latest" if block is None else hex(block)
                     return node.rpc("eth_call", [{"to": to, "data": data}, tag]) or "0x"
 
-                def get_logs(self, from_block: int, to_block: int, address: str) -> list:
+                def get_logs(self, from_block: int, to_block: int, address: str,
+                             topics: list | None = None) -> list:
                     return node.rpc("eth_getLogs", [
                         {"fromBlock": hex(from_block), "toBlock": hex(to_block),
                          "address": address},
@@ -391,6 +581,12 @@ class TestRelayerStateMachine(unittest.TestCase):
 
                 def send_raw_transaction(self, signed: str) -> str:
                     return node.rpc("eth_sendRawTransaction", [signed])
+
+                def wait_for_receipt(self, tx_hash: str,
+                                     timeout_seconds: float = 60.0,
+                                     poll: float = 0.25) -> dict | None:
+                    # Fake nodes mine instantly — receipt is available now.
+                    return node.rpc("eth_getTransactionReceipt", [tx_hash])
 
             return _C()
 

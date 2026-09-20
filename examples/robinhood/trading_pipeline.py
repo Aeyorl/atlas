@@ -2,13 +2,13 @@
 Example: Cross-ecosystem trading signal pipeline.
 Agents on Virtuals → EVM → Robinhood Chain.
 """
-from atlas import AtlasClient
+from nive import NiveClient
 
 class TradingPipeline:
     def __init__(self):
-        self.rh = AtlasClient(ecosystem="robinhood-chain")
-        self.evm = AtlasClient(ecosystem="evm")
-        self.virt = AtlasClient(ecosystem="virtuals")
+        self.rh = NiveClient(ecosystem="robinhood-chain")
+        self.evm = NiveClient(ecosystem="evm")
+        self.virt = NiveClient(ecosystem="virtuals")
 
     def run(self, symbol="ETH/USDC"):
         return {

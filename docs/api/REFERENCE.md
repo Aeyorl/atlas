@@ -1,4 +1,4 @@
-# Atlas API Reference
+# Nive API Reference
 
 ## Endpoints
 

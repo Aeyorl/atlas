@@ -21,7 +21,9 @@ contract MockGroth16Verifier is IVerifier {
     {
         if (proof.length < 96) return false;
         if (proof[0] != 0x07) return false; // Groth16 proof tag
-        if (publicInputs.length != 2) return false; // [taskId, resultHash]
+        // Circuit variants: [taskId_lo, taskId_hi] or
+        // [taskId_lo, taskId_hi, result_lo, result_hi].
+        if (publicInputs.length != 2 && publicInputs.length != 4) return false;
         if (publicInputs[0] == 0) return false;
         return true;
     }
@@ -91,16 +93,22 @@ contract ZkVerificationTest is Test {
     }
 
     /// @dev The settlement payload for a proof over `taskId`:
-    ///      abi.encode(proof, publicInputs) with publicInputs[0] = taskId.
+    ///      abi.encode(proof, publicInputs) with the canonical limb binding
+    ///      publicInputs[0..1] = (lo, hi) 128-bit limbs of the task id.
     function _proofBlob(bytes32 taskId) internal pure returns (bytes memory) {
         uint256[] memory inputs = new uint256[](2);
-        inputs[0] = uint256(taskId);
-        inputs[1] = uint256(keccak256("result"));
+        inputs[0] = uint256(taskId) & type(uint128).max;
+        inputs[1] = uint256(taskId) >> 128;
         return abi.encode(_groth16Proof(), inputs);
     }
 
     /// @dev Runs a task through to Verifying (proof submitted at completion).
     function _runToVerifying(bytes32 taskId) internal {
+        _runToVerifying(taskId, _proofBlob(taskId));
+    }
+
+    /// @dev Same, but with a caller-supplied completion proof payload.
+    function _runToVerifying(bytes32 taskId, bytes memory proofPayload) internal {
         vm.deal(creator, BUDGET);
         vm.prank(creator);
         taskManager.createTask{value: BUDGET}(
@@ -111,7 +119,7 @@ contract ZkVerificationTest is Test {
         vm.prank(creator);
         taskManager.acceptBid(taskId, agentOwner);
         vm.prank(agentOwner);
-        taskManager.completeTask(taskId, "0xresult", _proofBlob(taskId));
+        taskManager.completeTask(taskId, "0xresult", proofPayload);
     }
 
     /// @dev Verify + advance past the dispute window + settle.
@@ -173,8 +181,8 @@ contract ZkVerificationTest is Test {
 
         // Complete with a bad-tag proof (fails the mock's check)
         uint256[] memory inputs = new uint256[](2);
-        inputs[0] = uint256(TASK1);
-        inputs[1] = 1;
+        inputs[0] = uint256(TASK1) & type(uint128).max;
+        inputs[1] = uint256(TASK1) >> 128;
         bytes memory badProof = new bytes(96);
         badProof[0] = 0x08; // wrong tag
 
@@ -207,7 +215,7 @@ contract ZkVerificationTest is Test {
         settlement.setVerifier(address(mockVerifier));
 
         // Agent submits a well-formed proof bound to a DIFFERENT task id —
-        // the engine's publicInputs[0] check must reject it even though the
+        // the engine's limb-binding check must reject it even though the
         // verifier itself would accept the shape.
         bytes32 otherTask = keccak256("some-other-task");
         vm.deal(creator, BUDGET);
@@ -336,5 +344,177 @@ contract ZkVerificationTest is Test {
         bytes memory stored = taskManager.getProof(TASK1);
         assertEq(stored.length, blob.length);
         assertEq(keccak256(stored), keccak256(blob));
+    }
+
+    // ────────────────────────────────
+    //  Canonical limb binding (mod-r replay defense)
+    // ────────────────────────────────
+
+    /// @dev The engine must bind proofs to the FULL 256-bit task id via
+    ///      (lo, hi) limbs — not the raw id mod r. A proof limb pair that
+    ///      reconstructs a congruent-but-different id must be rejected.
+    function test_LimbBinding_RejectsCongruentTaskId() public {
+        vm.prank(governor);
+        settlement.setVerifier(address(mockVerifier));
+
+        // Limbs of TASK1 but with the high limb bumped by r >> 128 is not
+        // directly constructible; instead use a hi limb that changes the
+        // reconstructed id while staying within uint128.
+        uint256 lo = uint256(TASK1) & type(uint128).max;
+        uint256 hi = uint256(TASK1) >> 128;
+        uint256[] memory inputs = new uint256[](2);
+        inputs[0] = lo;
+        inputs[1] = (hi + 1) & type(uint128).max;
+
+        _runToVerifying(TASK1, abi.encode(_groth16Proof(), inputs));
+
+        vm.prank(governor);
+        taskManager.verifyTask(TASK1, true);
+        vm.warp(block.timestamp + 3 days + 1);
+
+        vm.expectRevert(SettlementEngine.SettlementEngine__ProofTaskMismatch.selector);
+        taskManager.settleTask(TASK1);
+        assertEq(settlement.getEscrow(TASK1), BUDGET);
+    }
+
+    function test_LimbBinding_LimbAboveUint128Reverts() public {
+        vm.prank(governor);
+        settlement.setVerifier(address(mockVerifier));
+
+        // A limb >= 2^128 cannot be part of a canonical 256-bit split —
+        // and would also be a raw-value binding attempt.
+        uint256[] memory inputs = new uint256[](2);
+        inputs[0] = uint256(TASK1) & type(uint128).max;
+        inputs[1] = type(uint128).max; // valid uint128, but (hi<<128|lo) != TASK1 is checked too
+        inputs[1] = uint256(TASK1) >> 128;
+        inputs[0] = (type(uint128).max); // lo limb overflowing the reconstruction
+
+        _runToVerifying(TASK1, abi.encode(_groth16Proof(), inputs));
+
+        vm.prank(governor);
+        taskManager.verifyTask(TASK1, true);
+        vm.warp(block.timestamp + 3 days + 1);
+
+        vm.expectRevert(SettlementEngine.SettlementEngine__ProofTaskMismatch.selector);
+        taskManager.settleTask(TASK1);
+    }
+
+    function test_LimbBinding_OddInputCountReverts() public {
+        vm.prank(governor);
+        settlement.setVerifier(address(mockVerifier));
+
+        // 3 inputs: not 2 (task only) nor 4 (task + result) — reject.
+        uint256[] memory inputs = new uint256[](3);
+        inputs[0] = uint256(TASK1) & type(uint128).max;
+        inputs[1] = uint256(TASK1) >> 128;
+        inputs[2] = 0;
+
+        _runToVerifying(TASK1, abi.encode(_groth16Proof(), inputs));
+
+        vm.prank(governor);
+        taskManager.verifyTask(TASK1, true);
+        vm.warp(block.timestamp + 3 days + 1);
+
+        vm.expectRevert(SettlementEngine.SettlementEngine__ProofTaskMismatch.selector);
+        taskManager.settleTask(TASK1);
+    }
+
+    function test_ResultHash_CommittedAtCompletion() public {
+        _runToVerifying(TASK1);
+
+        // sha256("0xresult") — the commitment matches the circuit's hash
+        // function (SHA-256), not keccak256. Computed via the 0x02
+        // precompile (same call the contract makes; the vendored forge-std
+        // predates the vm.sha256 cheatcode).
+        bytes32 expected = _sha256(bytes("0xresult"));
+        assertEq(taskManager.getResultHash(TASK1), expected);
+        assertEq(taskManager.getResultHash(keccak256("no-such-task")), bytes32(0));
+    }
+
+    /// @dev SHA-256 precompile (address 0x02).
+    function _sha256(bytes memory data) internal view returns (bytes32 out) {
+        (bool ok, bytes memory res) = address(0x02).staticcall(data);
+        require(ok && res.length == 32, "sha256 precompile failed");
+        assembly {
+            out := mload(add(res, 32))
+        }
+    }
+
+    function test_ResultBinding_MismatchedResultLimbsRevert() public {
+        vm.prank(governor);
+        settlement.setVerifier(address(mockVerifier));
+
+        // Complete with a proof claiming a DIFFERENT result hash — the
+        // engine must reject it against the hash recorded at completion.
+        bytes32 fakeResult = keccak256("forged-result");
+        uint256[] memory inputs = new uint256[](4);
+        inputs[0] = uint256(TASK1) & type(uint128).max;
+        inputs[1] = uint256(TASK1) >> 128;
+        inputs[2] = uint256(fakeResult) & type(uint128).max;
+        inputs[3] = uint256(fakeResult) >> 128;
+        _runToVerifying(TASK1, abi.encode(_groth16Proof(), inputs));
+
+        vm.prank(governor);
+        taskManager.verifyTask(TASK1, true);
+        vm.warp(block.timestamp + 3 days + 1);
+
+        vm.expectRevert(SettlementEngine.SettlementEngine__ProofTaskMismatch.selector);
+        taskManager.settleTask(TASK1);
+        assertEq(settlement.getEscrow(TASK1), BUDGET);
+    }
+
+    function test_ResultBinding_CorrectResultLimbsSettle() public {
+        vm.prank(governor);
+        settlement.setVerifier(address(mockVerifier));
+
+        // Drive a fresh task through completion carrying a 4-limb proof that
+        // binds BOTH its own task id and its real recorded result hash.
+        bytes32 TASK2 = keccak256("task-2");
+        bytes32 resultHash = _sha256(bytes("0xresult")); // what TASK2 completes with
+
+        uint256[] memory inputs = new uint256[](4);
+        inputs[0] = uint256(TASK2) & type(uint128).max;
+        inputs[1] = uint256(TASK2) >> 128;
+        inputs[2] = uint256(resultHash) & type(uint128).max;
+        inputs[3] = uint256(resultHash) >> 128;
+
+        vm.deal(creator, BUDGET);
+        vm.prank(creator);
+        taskManager.createTask{value: BUDGET}(TASK2, _caps(), BUDGET, "", block.timestamp + DEADLINE);
+        vm.prank(agentOwner);
+        taskManager.submitBid(TASK2, FEE);
+        vm.prank(creator);
+        taskManager.acceptBid(TASK2, agentOwner);
+        vm.prank(agentOwner);
+        taskManager.completeTask(TASK2, "0xresult", abi.encode(_groth16Proof(), inputs));
+        assertEq(taskManager.getResultHash(TASK2), resultHash);
+
+        vm.prank(governor);
+        taskManager.verifyTask(TASK2, true);
+        vm.warp(block.timestamp + 3 days + 1);
+
+        taskManager.settleTask(TASK2);
+        assertTrue(settlement.getSettlement(TASK2).settled);
+        assertTrue(settlement.hasProofVerified(TASK2));
+    }
+
+    function test_ResultBinding_ZeroResultLimbsRevert() public {
+        vm.prank(governor);
+        settlement.setVerifier(address(mockVerifier));
+
+        // Zero limbs (0, 0) can never reconstruct a recorded hash.
+        uint256[] memory inputs = new uint256[](4);
+        inputs[0] = uint256(TASK1) & type(uint128).max;
+        inputs[1] = uint256(TASK1) >> 128;
+        inputs[2] = 0;
+        inputs[3] = 0;
+        _runToVerifying(TASK1, abi.encode(_groth16Proof(), inputs));
+
+        vm.prank(governor);
+        taskManager.verifyTask(TASK1, true);
+        vm.warp(block.timestamp + 3 days + 1);
+
+        vm.expectRevert(SettlementEngine.SettlementEngine__ProofTaskMismatch.selector);
+        taskManager.settleTask(TASK1);
     }
 }

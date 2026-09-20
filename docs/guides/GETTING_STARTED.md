@@ -1,12 +1,12 @@
-# Atlas Developer Guide
+# Nive Developer Guide
 
 ```bash
-pip install atlas-sdk
+pip install nive-sdk
 ```
 
 ```python
-from atlas import AtlasClient
-client = AtlasClient(ecosystem="robinhood-chain")
+from nive import NiveClient
+client = NiveClient(ecosystem="robinhood-chain")
 task = client.create_task(["ANALYZE"], 100, {"symbol": "ETH/USDC"})
 print(f"Task: {task.task_id}")
 ```

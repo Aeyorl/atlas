@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {AtlasCore} from "../core/AtlasCore.sol";
-import {IAtlasCore} from "../interfaces/IAtlasCore.sol";
+import {NiveCore} from "../core/NiveCore.sol";
+import {INiveCore} from "../interfaces/INiveCore.sol";
 
-contract AtlasCoreTest is Test {
-    AtlasCore internal core;
+contract NiveCoreTest is Test {
+    NiveCore internal core;
 
     address internal governor = makeAddr("governor");
     address internal guardian = makeAddr("guardian");
@@ -15,7 +15,7 @@ contract AtlasCoreTest is Test {
     function setUp() public {
         vm.prank(governor);
         // Dependencies are interface-only upstream; not called in these paths.
-        core = new AtlasCore(address(0), address(0), address(0), address(0));
+        core = new NiveCore(address(0), address(0), address(0), address(0));
     }
 
     // ────────────────────────────────
@@ -38,7 +38,7 @@ contract AtlasCoreTest is Test {
 
         vm.prank(guardian);
         vm.expectEmit(true, false, false, true);
-        emit IAtlasCore.GuardianRegistered(guardian, stake);
+        emit INiveCore.GuardianRegistered(guardian, stake);
         core.registerGuardian(stake);
 
         assertEq(core.getGuardianCount(), 1);
@@ -51,7 +51,7 @@ contract AtlasCoreTest is Test {
     function test_RegisterGuardian_RevertInsufficientStake() public {
         uint256 stake = core.MIN_GUARDIAN_STAKE(); // read before expectRevert — inline getter would consume it
         vm.prank(guardian);
-        vm.expectRevert("AtlasCore: insufficient stake");
+        vm.expectRevert("NiveCore: insufficient stake");
         core.registerGuardian(stake - 1);
     }
 
@@ -59,7 +59,7 @@ contract AtlasCoreTest is Test {
         uint256 stake = core.MIN_GUARDIAN_STAKE();
         vm.startPrank(guardian);
         core.registerGuardian(stake);
-        vm.expectRevert("AtlasCore: already guardian");
+        vm.expectRevert("NiveCore: already guardian");
         core.registerGuardian(stake);
         vm.stopPrank();
     }
@@ -70,7 +70,7 @@ contract AtlasCoreTest is Test {
 
         uint256 stake = core.MIN_GUARDIAN_STAKE();
         vm.prank(guardian);
-        vm.expectRevert("AtlasCore: paused");
+        vm.expectRevert("NiveCore: paused");
         core.registerGuardian(stake);
     }
 
@@ -81,12 +81,12 @@ contract AtlasCoreTest is Test {
     function test_PauseUnpause_ByGovernor() public {
         vm.startPrank(governor);
         vm.expectEmit(true, false, false, false);
-        emit IAtlasCore.ProtocolPaused(governor);
+        emit INiveCore.ProtocolPaused(governor);
         core.pause();
         assertTrue(core.paused());
 
         vm.expectEmit(true, false, false, false);
-        emit IAtlasCore.ProtocolUnpaused(governor);
+        emit INiveCore.ProtocolUnpaused(governor);
         core.unpause();
         assertFalse(core.paused());
         vm.stopPrank();
@@ -94,7 +94,7 @@ contract AtlasCoreTest is Test {
 
     function test_Pause_RevertNotGovernor() public {
         vm.prank(alice);
-        vm.expectRevert("AtlasCore: not governor");
+        vm.expectRevert("NiveCore: not governor");
         core.pause();
     }
 
@@ -103,21 +103,21 @@ contract AtlasCoreTest is Test {
         core.pause();
 
         vm.prank(alice);
-        vm.expectRevert("AtlasCore: not governor");
+        vm.expectRevert("NiveCore: not governor");
         core.unpause();
     }
 
     function test_Pause_RevertAlreadyPaused() public {
         vm.startPrank(governor);
         core.pause();
-        vm.expectRevert("AtlasCore: already paused");
+        vm.expectRevert("NiveCore: already paused");
         core.pause();
         vm.stopPrank();
     }
 
     function test_Unpause_RevertNotPaused() public {
         vm.prank(governor);
-        vm.expectRevert("AtlasCore: not paused");
+        vm.expectRevert("NiveCore: not paused");
         core.unpause();
     }
 
@@ -134,7 +134,7 @@ contract AtlasCoreTest is Test {
 
         vm.prank(governor);
         vm.expectEmit(true, false, false, true);
-        emit IAtlasCore.GuardianSlashed(guardian, slash);
+        emit INiveCore.GuardianSlashed(guardian, slash);
         core.slashGuardian(guardian, slash);
 
         (, uint256 stakeAfter,,, uint256 slashedCount) = core.guardians(guardian);
@@ -147,7 +147,7 @@ contract AtlasCoreTest is Test {
         core.registerGuardian(core.MIN_GUARDIAN_STAKE());
 
         vm.prank(alice);
-        vm.expectRevert("AtlasCore: not governor");
+        vm.expectRevert("NiveCore: not governor");
         core.slashGuardian(guardian, 1 ether);
     }
 
@@ -157,7 +157,7 @@ contract AtlasCoreTest is Test {
 
         uint256 stake = core.MIN_GUARDIAN_STAKE();
         vm.prank(governor);
-        vm.expectRevert("AtlasCore: insufficient stake");
+        vm.expectRevert("NiveCore: insufficient stake");
         core.slashGuardian(guardian, stake + 1);
     }
 
@@ -168,13 +168,13 @@ contract AtlasCoreTest is Test {
     function test_SetGovernor_RotatesAuthority() public {
         vm.prank(governor);
         vm.expectEmit(true, true, false, false);
-        emit IAtlasCore.GovernorUpdated(governor, alice);
+        emit INiveCore.GovernorUpdated(governor, alice);
         core.setGovernor(alice);
         assertEq(core.governor(), alice);
 
         // Old governor loses authority...
         vm.prank(governor);
-        vm.expectRevert("AtlasCore: not governor");
+        vm.expectRevert("NiveCore: not governor");
         core.pause();
 
         // ...new governor gains it.
@@ -185,13 +185,13 @@ contract AtlasCoreTest is Test {
 
     function test_SetGovernor_RevertNotGovernor() public {
         vm.prank(alice);
-        vm.expectRevert("AtlasCore: not governor");
+        vm.expectRevert("NiveCore: not governor");
         core.setGovernor(alice);
     }
 
     function test_SetGovernor_RevertZeroAddress() public {
         vm.prank(governor);
-        vm.expectRevert("AtlasCore: zero governor");
+        vm.expectRevert("NiveCore: zero governor");
         core.setGovernor(address(0));
     }
 }

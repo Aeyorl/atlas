@@ -9,7 +9,7 @@ from typing import Any
 
 from .chain import keccak256
 
-# Ecosystem identifiers — must match AtlasCore / AtlasBridge constants.
+# Ecosystem identifiers — must match NiveCore / NiveBridge constants.
 ECOSYSTEM_ROBINHOOD = "0x" + keccak256(b"robinhood-chain").hex()
 ECOSYSTEM_EVM = "0x" + keccak256(b"evm").hex()
 ECOSYSTEM_VIRTUALS = "0x" + keccak256(b"virtuals").hex()
@@ -34,7 +34,7 @@ class ChainConfig:
     chain_id: int
     rpc_url: str
     ecosystem: str            # 0x-prefixed keccak("robinhood-chain"|"evm"|"virtuals")
-    bridge_address: str       # AtlasBridge proxy/logic address on this chain
+    bridge_address: str       # NiveBridge proxy/logic address on this chain
 
     # Delivery signing key. In production this comes from a KMS/HSM;
     # an env var / config file is acceptable for testnets.
@@ -106,7 +106,7 @@ def _coerce_chain(raw: dict[str, Any]) -> ChainConfig:
         rpc_url=raw["rpc_url"],
         ecosystem=raw["ecosystem"],
         bridge_address=raw["bridge_address"],
-        private_key=raw.get("private_key") or os.environ.get("ATLAS_RELAYER_KEY"),
+        private_key=raw.get("private_key") or os.environ.get("NIVE_RELAYER_KEY"),
         start_block=(int(raw["start_block"]) if raw.get("start_block") is not None else None),
         poll_interval_seconds=float(raw.get("poll_interval_seconds", 6.0)),
         confirmations=int(raw.get("confirmations", 1)),

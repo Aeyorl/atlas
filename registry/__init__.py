@@ -1,7 +1,7 @@
 """Agent registry and reputation system."""
-from dataclasses import dataclass, field
-from typing import Optional
 import time
+from dataclasses import dataclass, field
+
 
 @dataclass
 class AgentRecord:
@@ -19,7 +19,7 @@ class AgentRegistry:
         self._agents[agent_id] = record
         return record
 
-    def get_agent(self, agent_id: str) -> Optional[AgentRecord]:
+    def get_agent(self, agent_id: str) -> AgentRecord | None:
         return self._agents.get(agent_id)
 
     def get_agents_by_ecosystem(self, ecosystem: str) -> list[AgentRecord]:

@@ -8,7 +8,7 @@ import {SettlementEngine} from "../core/SettlementEngine.sol";
 import {IAgentRegistry} from "../interfaces/IAgentRegistry.sol";
 
 /// @title IntegrationFlowTest
-/// @notice End-to-end Atlas coordination flow: register → discover → create
+/// @notice End-to-end Nive coordination flow: register → discover → create
 ///         task → bid → accept → execute → verify → dispute window → settle,
 ///         with reputation outcomes asserted along the way.
 contract IntegrationFlowTest is Test {

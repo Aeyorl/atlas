@@ -104,6 +104,14 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
     ///      completion (forwarded to the settlement engine's ZK verifier)
     mapping(bytes32 => bytes) private _proofs;
 
+    /// @dev taskId => sha256(result) recorded at completion (via the 0x02
+    ///      precompile). SHA-256 — not keccak — so the commitment is directly
+    ///     bindable from the Groth16 circuit, which proves knowledge of a
+    ///      preimage hashing (SHA-256) to the published result. Gives dispute
+    ///      resolution and ZK verification an on-chain commitment to exactly
+    ///      what the agent delivered.
+    mapping(bytes32 => bytes32) private _resultHashes;
+
     // ────────────────────────────────
     //  Events (extensions to ITaskManager)
     // ────────────────────────────────
@@ -225,9 +233,28 @@ contract TaskManager is ITaskManager, ReentrancyGuard {
         // it to its pluggable ZK verifier when one is configured. Kept as a
         // blob here — proof-system-specific formats stay off this contract.
         _proofs[taskId] = proof;
+        _resultHashes[taskId] = _sha256(result);
         t.status = TaskStatus.Verifying;
 
         emit TaskCompleted(taskId, result);
+    }
+
+    /// @notice On-chain commitment to the delivered result: sha256(result)
+    ///         as recorded at completion (0 for tasks never completed).
+    /// @dev SHA-256 (precompile 0x02), NOT keccak256 — the Groth16 circuit
+    ///      proves SHA-256(preimage) == published result, so the commitment
+    ///      chain proof → result → task must use the same function.
+    function getResultHash(bytes32 taskId) external view returns (bytes32) {
+        return _resultHashes[taskId];
+    }
+
+    /// @dev SHA-256 precompile (address 0x02). Reverts only on precompile
+    ///      failure, which cannot happen for any input length on a
+    ///      conforming chain; guarded anyway.
+    function _sha256(bytes memory data) internal view returns (bytes32) {
+        (bool ok, bytes memory out) = address(0x02).staticcall(data);
+        require(ok && out.length == 32, "TaskManager: sha256 failed");
+        return bytes32(out);
     }
 
     /// @inheritdoc ITaskManager

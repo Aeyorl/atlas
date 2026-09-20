@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title IAtlasBridge
+/// @title INiveBridge
 /// @notice Cross-ecosystem message passing between Robinhood Chain, EVM, and Virtuals
-interface IAtlasBridge {
+interface INiveBridge {
     struct CrossChainMessage {
         bytes32 messageId;
         bytes32 sourceEcosystem;

@@ -10,4 +10,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: foundry-rs/foundry-toolchain@v1
-      - run: forge script scripts/deploy/DeployAtlas.s.sol --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.DEPLOYER_KEY }} --broadcast --verify
+      - run: forge script scripts/deploy/DeployNive.s.sol --rpc-url ${{ secrets.RPC_URL }} --private-key ${{ secrets.DEPLOYER_KEY }} --broadcast --verify

@@ -1,6 +1,6 @@
-"""AtlasBridge relayer — watches `MessageSent` outbox events, attests, delivers.
+"""NiveBridge relayer — watches `MessageSent` outbox events, attests, delivers.
 
-See `contracts/core/AtlasBridge.sol` for the on-chain protocol and
+See `contracts/core/NiveBridge.sol` for the on-chain protocol and
 `runtime/relayer/service.py` for the relay pipeline.
 """
 
@@ -18,20 +18,20 @@ from .config import (
     load_config,
 )
 from .service import (
-    AtlasRelayer,
     MessageState,
+    NiveRelayer,
     Signer,
     TrackedMessage,
     abi_encode,
 )
 
 __all__ = [
-    "AtlasRelayer",
     "BridgeReader",
     "ChainConfig",
     "JsonRpcClient",
     "MessageSentEvent",
     "MessageState",
+    "NiveRelayer",
     "RelayerConfig",
     "Signer",
     "TrackedMessage",

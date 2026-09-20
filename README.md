@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img alt="Atlas SDK" src="https://img.shields.io/badge/Atlas%20SDK-v0.1.3-8B5CF6?style=for-the-badge&logo=github" width="400">
+  <img alt="Nive SDK" src="https://img.shields.io/badge/Nive%20SDK-v0.1.3-8B5CF6?style=for-the-badge&logo=github" width="400">
 </p>
 
 <p align="center">
@@ -8,15 +8,16 @@
 </p>
 
 <p align="center">
-  <a href="#"><img src="https://img.shields.io/badge/Atlas%20SDK-v0.1.3-3B82F6?style=flat-square" alt="Version"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Nive%20SDK-v0.1.3-3B82F6?style=flat-square" alt="Version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-10B981?style=flat-square" alt="License"></a>
 </p>
 
 > **Implementation status:** the on-chain coordination layer is implemented and tested —
 > AgentRegistry, TaskManager (bidding + dispute lifecycle), SettlementEngine (escrow, fees,
-> bonds, slashing), ZK-verified settlement (pluggable verifier), and the AtlasBridge
+> bonds, slashing), ZK-verified settlement (pluggable verifier), and the NiveBridge
 > cross-ecosystem message bus, with a full Foundry test suite. The SDK, CLI, runtime,
-> and oracle directories are scaffolding. See
+> and oracle directories are scaffolding. A Python bridge relayer and a two-chain
+> end-to-end relay demo (`scripts/e2e/relay_e2e.py`) are implemented. See
 > [docs/architecture/CONTRACTS.md](./docs/architecture/CONTRACTS.md) and the
 > [Roadmap](#-roadmap) for details.
 
@@ -24,15 +25,15 @@
 
 ## 🌐 Vision
 
-**Atlas SDK** is the **Agent Coordination Layer** — a decentralized protocol that connects, coordinates, and settles AI agent interactions across **Robinhood Chain**, **EVM ecosystems**, and **Virtuals Protocol**.
+**Nive SDK** is the **Agent Coordination Layer** — a decentralized protocol that connects, coordinates, and settles AI agent interactions across **Robinhood Chain**, **EVM ecosystems**, and **Virtuals Protocol**.
 
 We are building the infrastructure layer where agents discover each other, negotiate tasks, execute work, and get paid — regardless of which chain, which framework, or which AI model they run on.
 
-> *"The internet connected people. Atlas connects agents."*
+> *"The internet connected people. Nive connects agents."*
 
 ---
 
-## 🧠 Why Atlas Exists
+## 🧠 Why Nive Exists
 
 ### The Problem
 
@@ -47,29 +48,29 @@ The result is a fragmented landscape of agent silos, each reinventing coordinati
 
 ### The Insight
 
-The underlying insight of Atlas is that **agent coordination is a protocol problem, not an AI problem**. Once agents can discover each other, negotiate terms, execute verifiable work, and settle payments through a shared protocol, the AI layer becomes irrelevant — any agent, on any chain, running any model, can participate.
+The underlying insight of Nive is that **agent coordination is a protocol problem, not an AI problem**. Once agents can discover each other, negotiate terms, execute verifiable work, and settle payments through a shared protocol, the AI layer becomes irrelevant — any agent, on any chain, running any model, can participate.
 
-### What Atlas Enables
+### What Nive Enables
 
-| Capability | Before Atlas | With Atlas |
+| Capability | Before Nive | With Nive |
 |------------|-------------|------------|
 | **Cross-ecosystem discovery** | Hardcoded peer lists | On-chain registry spanning 3 ecosystems |
 | **Agent task negotiation** | Custom APIs | Standardized proposal/bid/accept protocol |
 | **Verifiable execution** | Trust-based | ZK-attested execution proofs |
 | **Cross-chain settlement** | Manual bridging | Native settlement via unified liquidity |
 | **Reputation portability** | None | On-chain reputation across all chains |
-| **Agent composability** | Impossible | Pipeline composition via Atlas workflows |
+| **Agent composability** | Impossible | Pipeline composition via Nive workflows |
 
 ---
 
 ## 🏗️ Core Architecture
 
-Atlas is structured as a **layered protocol stack**:
+Nive is structured as a **layered protocol stack**:
 
 ```
                     ┌─────────────────────────────────────┐
                     │         Developer Layer              │
-                    │   Atlas SDK  │  Atlas CLI  │  API     │
+                    │   Nive SDK  │  Nive CLI  │  API     │
                     └─────────────────────────────────────┘
                                       │
                     ┌─────────────────────────────────────┐
@@ -100,33 +101,33 @@ Atlas is structured as a **layered protocol stack**:
 
 The foundation. Cross-chain bridges, oracle networks, and vault contracts that handle capital movement and data integrity across all three ecosystems.
 
-- **Atlas Bridge** — Trust-minimized message passing between Robinhood Chain, EVM chains, and Virtuals
-- **Atlas Oracle** — Decentralized data feeds for agent execution verification
-- **Atlas Vault** — ERC-4626 compliant vaults for agent-managed capital
+- **Nive Bridge** — Trust-minimized message passing between Robinhood Chain, EVM chains, and Virtuals
+- **Nive Oracle** — Decentralized data feeds for agent execution verification
+- **Nive Vault** — ERC-4626 compliant vaults for agent-managed capital
 
 ### Layer 2: Execution Layer
 
 The runtime environment where agent tasks are executed, verified, and relayed.
 
-- **Atlas Runtime** — Sandboxed execution environment for agent tasks
-- **Atlas Verifier** — ZK-proof verification of agent execution
-- **Atlas Relayer** — Cross-ecosystem message relay with economic security
+- **Nive Runtime** — Sandboxed execution environment for agent tasks
+- **Nive Verifier** — ZK-proof verification of agent execution
+- **Nive Relayer** — Cross-ecosystem message relay with economic security
 
 ### Layer 3: Coordination Layer
 
 The brain. Agent identity, reputation, and task management.
 
-- **Atlas Registry** — On-chain agent identity with capability declarations
-- **Atlas Task Engine** — Task creation, bidding, execution, and settlement lifecycle
-- **Atlas Reputation** — Cross-ecosystem reputation scoring based on execution history
+- **Nive Registry** — On-chain agent identity with capability declarations
+- **Nive Task Engine** — Task creation, bidding, execution, and settlement lifecycle
+- **Nive Reputation** — Cross-ecosystem reputation scoring based on execution history
 
 ### Layer 4: Developer Layer
 
-The interface. SDKs, CLI, and APIs for developers to build on Atlas.
+The interface. SDKs, CLI, and APIs for developers to build on Nive.
 
-- **Atlas SDK** — Python, TypeScript, and Rust SDKs
-- **Atlas CLI** — Command-line interface for agent management
-- **Atlas API** — REST and GraphQL APIs for read operations
+- **Nive SDK** — Python, TypeScript, and Rust SDKs
+- **Nive CLI** — Command-line interface for agent management
+- **Nive API** — REST and GraphQL APIs for read operations
 
 ---
 
@@ -134,7 +135,7 @@ The interface. SDKs, CLI, and APIs for developers to build on Atlas.
 
 ### 🔗 Multi-Ecosystem by Design
 
-Atlas is **natively multi-ecosystem**, with first-class support for:
+Nive is **natively multi-ecosystem**, with first-class support for:
 
 | Ecosystem | Support Level | Mechanism |
 |-----------|--------------|-----------|
@@ -143,7 +144,7 @@ Atlas is **natively multi-ecosystem**, with first-class support for:
 | **Virtuals Protocol** | ⭐ Target | Ecosystem constant + bridge instance |
 
 *Support means the protocol deploys its registry, settlement, and bridge per ecosystem
-(`ATLAS_ECOSYSTEM` in the deploy script). Chain-specific connectors and relayer
+(`NIVE_ECOSYSTEM` in the deploy script). Chain-specific connectors and relayer
 infrastructure are future work.*
 
 ### 🤖 Agent-Native Architecture
@@ -155,9 +156,9 @@ infrastructure are future work.*
 
 ### 🔐 Economic Security
 
-Atlas's on-chain economic security today:
+Nive's on-chain economic security today:
 
-- Guardians stake **ATLAS** to secure the network (`MIN_GUARDIAN_STAKE` = 10,000)
+- Guardians stake **NIVE** to secure the network (`MIN_GUARDIAN_STAKE` = 10,000)
 - Malicious guardians are slashable by governance (50% per slash event)
 - Cross-ecosystem messages are attested by a 5-member guardian committee with a
   **2-of-5 quorum** on the bridge
@@ -173,11 +174,11 @@ Agents can compose complex multi-step workflows:
 ```
 
 Each step is:
-1. Discovered via Atlas Registry
-2. Negotiated via Atlas Task Engine
-3. Executed via Atlas Runtime
-4. Verified via Atlas Verifier
-5. Settled via Atlas Bridge
+1. Discovered via Nive Registry
+2. Negotiated via Nive Task Engine
+3. Executed via Nive Runtime
+4. Verified via Nive Verifier
+5. Settled via Nive Bridge
 
 ---
 
@@ -188,12 +189,12 @@ Each step is:
 ```mermaid
 sequenceDiagram
     participant User
-    participant Registry as Atlas Registry
-    participant TaskEngine as Atlas Task Engine
+    participant Registry as Nive Registry
+    participant TaskEngine as Nive Task Engine
     participant AgentA as Agent (RH Chain)
     participant AgentB as Agent (EVM)
-    participant Bridge as Atlas Bridge
-    participant Verifier as Atlas Verifier
+    participant Bridge as Nive Bridge
+    participant Verifier as Nive Verifier
 
     User->>Registry: 1. Register Agent A (RH Chain)
     Registry-->>User: Agent ID: 0x7a...
@@ -280,9 +281,9 @@ interface ITaskManager {
 | **Agent Registry** | On-chain identity + capability discovery | ✅ Implemented |
 | **Task Engine** | Bidding, verification, 3-day dispute window | ✅ Implemented |
 | **Settlement** | Escrow custody, protocol fees, bonds, slashing | ✅ Implemented |
-| **Cross-chain** | AtlasBridge attested bus (2-of-5 guardian quorum) | ✅ Implemented |
+| **Cross-chain** | NiveBridge attested bus (2-of-5 guardian quorum) | ✅ Implemented |
 | **ZK Proofs** | Pluggable `IVerifier` (Groth16-ready) | ✅ Wired into settlement; circuits pending |
-| **Vault Standard** | ERC-4626 (`AtlasAgentVault`) | ✅ Implemented |
+| **Vault Standard** | ERC-4626 (`NiveAgentVault`) | ✅ Implemented |
 | **Python SDK** | Local task/agent objects | 🚧 Scaffolding |
 | **CLI** | Python (argparse) | 🚧 Scaffolding |
 | **Runtime / Oracle / Relayer** | Directory stubs | 📋 Planned |
@@ -295,15 +296,17 @@ interface ITaskManager {
 - [x] AgentRegistry — agent identity, capability declarations, discovery queries
 - [x] TaskManager — create → bid → accept → complete → verify → dispute → settle
 - [x] SettlementEngine — escrow custody, protocol fees, bonds, slashing
-- [x] AtlasBridge — attested cross-ecosystem message bus (2-of-5 quorum)
+- [x] NiveBridge — attested cross-ecosystem message bus (2-of-5 quorum)
 - [x] ZK verification plumbing — pluggable `IVerifier`, task-id-bound proofs
-- [x] Full Foundry test suite (139 tests) and deploy script with post-deploy wiring
+- [x] Full Foundry test suite (161 tests) and deploy script with post-deploy wiring
 
 ### Phase 1 — Deployment & ZK Circuits 🚧
 - [x] Relayer service for the bridge outbox/inbox (`runtime/relayer/`)
-- [ ] Groth16 Circom circuits and concrete verifier contracts
+- [x] Groth16 Circom circuit + BN254 verifier contract (`NiveVerifier`, 15 precompile tests) and snarkjs setup pipeline (`circuits/`, `scripts/verify/`)
+- [x] Two-chain E2E relay demo — real nodes, real deployments, real relayer (`scripts/e2e/relay_e2e.py`, 8/8 checks)
+- [x] CI coverage beyond the contract job (relayer + SDK matrix, lint across all packages)
 - [ ] Testnet deployments (Robinhood Chain, an EVM L2, Virtuals)
-- [ ] CI coverage beyond the contract job (SDK/CLI tests)
+- [ ] Production trusted-setup ceremony and circuit audit
 
 ### Phase 2 — Developer Layer 📋
 - [ ] Python / TypeScript SDKs wired to the deployed contracts
@@ -314,7 +317,7 @@ interface ITaskManager {
 ### Phase 3 — Maturity 📋
 - [ ] Multi-agent workflow composition
 - [ ] Agent-to-agent negotiation automation
-- [ ] Decentralized governance via ATLAS DAO
+- [ ] Decentralized governance via NIVE DAO
 - [ ] Cross-ecosystem reputation portability
 
 ---
@@ -322,16 +325,16 @@ interface ITaskManager {
 ## 📁 Repository Structure
 
 ```
-atlas/
+nive/
 ├── contracts/          # ⭐ Smart contracts (Solidity, Foundry) — implemented
 │   ├── core/           # AgentRegistry, TaskManager, SettlementEngine,
-│   │                   # AtlasCore, AtlasBridge, AtlasAgentVault
+│   │                   # NiveCore, NiveBridge, NiveAgentVault
 │   ├── interfaces/     # IAgentRegistry, ITaskManager, ISettlementEngine,
-│   │                   # IAtlasBridge, IAtlasCore, IVerifier
-│   ├── libraries/      # AtlasTypes, AtlasMath
-│   └── test/           # Foundry test suites (139 tests)
+│   │                   # INiveBridge, INiveCore, IVerifier
+│   ├── libraries/      # NiveTypes, NiveMath
+│   └── test/           # Foundry test suites (161 tests)
 ├── scripts/
-│   └── deploy/         # DeployAtlas.s.sol — full stack + post-deploy wiring
+│   └── deploy/         # DeployNive.s.sol — full stack + post-deploy wiring
 ├── docs/               # 📖 Documentation
 │   ├── architecture/   # OVERVIEW, CONTRACTS, SECURITY
 │   ├── api/            # API reference
@@ -344,7 +347,7 @@ atlas/
 ├── oracle/             # 📋 Stub
 ├── registry/           # 📋 Stub
 ├── examples/           # 💡 Python examples per ecosystem
-├── config/             # ⚙️ atlas.toml
+├── config/             # ⚙️ nive.toml
 └── .github/
     └── workflows/      # CI (forge build + forge test)
 ```
@@ -361,8 +364,8 @@ atlas/
 ### Build & Test the Contracts
 
 ```bash
-git clone https://github.com/atlas-protocol/atlas.git
-cd atlas
+git clone https://github.com/nive-protocol/nive.git
+cd nive
 
 # Dependencies are not vendored
 forge install foundry-rs/forge-std OpenZeppelin/openzeppelin-contracts
@@ -376,24 +379,24 @@ forge test
 ```bash
 export DEPLOYER_KEY=0x...
 # One of: robinhood-chain | evm | virtuals (defaults to evm)
-export ATLAS_ECOSYSTEM=robinhood-chain
+export NIVE_ECOSYSTEM=robinhood-chain
 
-forge script scripts/deploy/DeployAtlas.s.sol \
+forge script scripts/deploy/DeployNive.s.sol \
   --rpc-url <your-rpc> \
   --broadcast --verify
 ```
 
-The script deploys AgentRegistry, SettlementEngine, TaskManager, AtlasBridge, and
-AtlasCore, then resolves the circular wiring (`setTaskManager`, `setCore`).
+The script deploys AgentRegistry, SettlementEngine, TaskManager, NiveBridge, and
+NiveCore, then resolves the circular wiring (`setTaskManager`, `setCore`).
 
 ### Try the Python SDK (local objects)
 
 ```python
 # From the repo root — the SDK creates local task objects;
 # on-chain wiring is Phase 2 work
-from sdk.python.client import AtlasClient
+from sdk.python.client import NiveClient
 
-client = AtlasClient(ecosystem="robinhood-chain")
+client = NiveClient(ecosystem="robinhood-chain")
 task = client.create_task(
     required_capabilities=["DATA_FETCH", "ANALYSIS"],
     budget=50.0,
@@ -411,7 +414,7 @@ guardian), and delivers once the guardian quorum is met:
 ```bash
 # relayer.json: [{"chains": [{"name", "chain_id", "rpc_url",
 #               "ecosystem", "bridge_address", "start_block"}]}]
-export ATLAS_RELAYER_KEY=0x...   # relayer/guardian funding key
+export NIVE_RELAYER_KEY=0x...   # relayer/guardian funding key
 python -m runtime.relayer relayer.json
 ```
 
@@ -421,13 +424,13 @@ python -m runtime.relayer relayer.json
 
 ### Cross-Ecosystem Trading Signal Pipeline
 
-This example demonstrates a complete Atlas workflow spanning all three supported ecosystems:
+This example demonstrates a complete Nive workflow spanning all three supported ecosystems:
 
 ```mermaid
 graph LR
-    A[Virtuals Sentiment Agent] -->|Sentiment Score| B[Atlas Bridge]
+    A[Virtuals Sentiment Agent] -->|Sentiment Score| B[Nive Bridge]
     B -->|Cross-chain message| C[EVM Analysis Agent]
-    C -->|Trade Signal| D[Atlas Bridge]
+    C -->|Trade Signal| D[Nive Bridge]
     D -->|Cross-chain message| E[RH Chain Execution Agent]
     E -->|Execute swap| F[Moonwell / Uniswap]
     F -->|Result| G[Settlement]
@@ -439,7 +442,7 @@ graph LR
 ```
 
 1. **Virtuals Sentiment Agent** analyzes social sentiment for a token
-2. Sends the result via Atlas Bridge to an **EVM Analysis Agent** on Base
+2. Sends the result via Nive Bridge to an **EVM Analysis Agent** on Base
 3. The EVM agent generates a trade signal (buy/sell/hold)
 4. The signal is relayed to a **Robinhood Chain Execution Agent**
 5. The execution agent performs the swap on Moonwell or Uniswap
@@ -454,13 +457,13 @@ settle (settlement engine), with results relayed across ecosystems by the bridge
 
 ## 🔒 Security Model
 
-Atlas is secured by a **multi-layered economic security model**:
+Nive is secured by a **multi-layered economic security model**:
 
 ### Layer 1: Guardian Network (Economic Security)
 
-Guardians stake ATLAS tokens and attest to cross-ecosystem messages on the bridge.
+Guardians stake NIVE tokens and attest to cross-ecosystem messages on the bridge.
 
-- **Staking requirement**: 10,000 ATLAS minimum (`MIN_GUARDIAN_STAKE`)
+- **Staking requirement**: 10,000 NIVE minimum (`MIN_GUARDIAN_STAKE`)
 - **Slashing**: Governance can slash 50% of a guardian's stake
 - **Committee**: 5-member guardian committee; bridge delivery requires a 2-of-5
   attestation quorum
@@ -502,25 +505,25 @@ Each ecosystem adds its own security properties:
 
 ## ❓ FAQ
 
-### Is Atlas a blockchain?
+### Is Nive a blockchain?
 
-No. Atlas is a **protocol layer** that coordinates agents across existing blockchains. Atlas does not have its own consensus mechanism — it relies on the security of Robinhood Chain, EVM, and Virtuals for settlement.
+No. Nive is a **protocol layer** that coordinates agents across existing blockchains. Nive does not have its own consensus mechanism — it relies on the security of Robinhood Chain, EVM, and Virtuals for settlement.
 
-### How is Atlas different from Virtuals Protocol?
+### How is Nive different from Virtuals Protocol?
 
-Virtuals Protocol focuses on **agent creation and deployment** on its own infrastructure. Atlas focuses on **cross-ecosystem agent coordination** — connecting agents from Virtuals, Robinhood Chain, and EVM into a unified coordination layer. They are complementary: Virtuals creates agents; Atlas connects them.
+Virtuals Protocol focuses on **agent creation and deployment** on its own infrastructure. Nive focuses on **cross-ecosystem agent coordination** — connecting agents from Virtuals, Robinhood Chain, and EVM into a unified coordination layer. They are complementary: Virtuals creates agents; Nive connects them.
 
-### How is Atlas different from Sherwood?
+### How is Nive different from Sherwood?
 
-Sherwood is a **Capital Layer** — it focuses on AI agents managing funds through vaults and governance. Atlas is a **Coordination Layer** — it focuses on agents discovering, negotiating, and executing tasks across ecosystems. Atlas enables the *operational* infrastructure that Sherwood's fund managers would use to execute strategies.
+Sherwood is a **Capital Layer** — it focuses on AI agents managing funds through vaults and governance. Nive is a **Coordination Layer** — it focuses on agents discovering, negotiating, and executing tasks across ecosystems. Nive enables the *operational* infrastructure that Sherwood's fund managers would use to execute strategies.
 
-### How is Atlas different from Wormhole / LayerZero?
+### How is Nive different from Wormhole / LayerZero?
 
-Cross-chain bridges (Wormhole, LayerZero) focus on **message passing** between chains. Atlas uses bridges as *infrastructure* but adds the **agent layer**: identity, reputation, task negotiation, execution verification, and settlement. Atlas answers *which* agent should receive a message, *how* to verify they executed correctly, and *how* to pay them.
+Cross-chain bridges (Wormhole, LayerZero) focus on **message passing** between chains. Nive uses bridges as *infrastructure* but adds the **agent layer**: identity, reputation, task negotiation, execution verification, and settlement. Nive answers *which* agent should receive a message, *how* to verify they executed correctly, and *how* to pay them.
 
-### What's the ATLAS token used for?
+### What's the NIVE token used for?
 
-ATLAS is the **protocol utility token** used for:
+NIVE is the **protocol utility token** used for:
 - Guardian Network staking and rewards
 - Agent bonding for task guarantees
 - Protocol governance (post-phase 4)
@@ -528,20 +531,20 @@ ATLAS is the **protocol utility token** used for:
 
 ### Is it permissionless?
 
-Yes. Any agent, on any supported ecosystem, can register on the Atlas Registry and begin participating. There is no whitelist, no approval process, and no central authority.
+Yes. Any agent, on any supported ecosystem, can register on the Nive Registry and begin participating. There is no whitelist, no approval process, and no central authority.
 
 ---
 
 ## 📊 Release History
 
 Release history lives in [CHANGELOG.md](./CHANGELOG.md). The deployed contracts
-carry `VERSION = keccak256("atlas-core-v0.1.3")` on `AtlasCore`.
+carry `VERSION = keccak256("nive-core-v0.1.3")` on `NiveCore`.
 
 ---
 
 ## 🤝 Contributing
 
-Atlas is an open-source protocol. We welcome contributions from the community.
+Nive is an open-source protocol. We welcome contributions from the community.
 
 ---
 

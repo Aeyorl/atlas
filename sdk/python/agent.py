@@ -1,4 +1,4 @@
-"""Agent model for Atlas Protocol SDK."""
+"""Agent model for Nive Protocol SDK."""
 from dataclasses import dataclass, field
 
 

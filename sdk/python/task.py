@@ -1,4 +1,4 @@
-"""Task model for Atlas Protocol SDK."""
+"""Task model for Nive Protocol SDK."""
 from dataclasses import dataclass
 from enum import Enum
 

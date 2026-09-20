@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 /// @title IVerifier
-/// @notice Generic ZK proof verification interface for the Atlas Verifier.
+/// @notice Generic ZK proof verification interface for the Nive Verifier.
 /// @dev Implementations wrap a concrete proof system — Groth16 (Circom) per
 ///      the architecture docs, with PLONK/STARK wrappers possible later.
 ///      The {SettlementEngine} calls this through `staticcall`, so compliant

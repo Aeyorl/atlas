@@ -1,4 +1,4 @@
-# Atlas SDK Activity
+# Nive SDK Activity
 
 Date: 2026-07-22
 Commit: 199

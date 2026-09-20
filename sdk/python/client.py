@@ -1,8 +1,9 @@
-"""AtlasClient — High-level client for the Atlas Protocol."""
+"""NiveClient — High-level client for the Nive Protocol."""
+import uuid
 from typing import ClassVar
 
 
-class AtlasClient:
+class NiveClient:
     SUPPORTED_ECOSYSTEMS: ClassVar[set[str]] = {"robinhood-chain", "evm", "virtuals"}
     def __init__(self, private_key: str | None = None, ecosystem: str = "robinhood-chain", rpc_url: str | None = None):
         if ecosystem not in self.SUPPORTED_ECOSYSTEMS:
@@ -13,7 +14,14 @@ class AtlasClient:
 
     def create_task(self, required_capabilities: list[str], budget: float, parameters: dict, deadline: int | None = None):
         from .task import Task, TaskStatus
-        task = Task(task_id=f"0x{id(self):x}", required_capabilities=required_capabilities, budget=budget, parameters=parameters, ecosystem=self.ecosystem)
+        task = Task(
+            task_id=f"task-{uuid.uuid4().hex[:16]}",
+            required_capabilities=required_capabilities,
+            budget=budget,
+            parameters=parameters,
+            ecosystem=self.ecosystem,
+            deadline=deadline,
+        )
         task.status = TaskStatus.CREATED
         return task
 

@@ -15,7 +15,7 @@ interface ITaskManager {
         bytes32   taskId;
         address   creator;
         bytes32[] requiredCapabilities;
-        uint256   budget;        // In ATLAS tokens
+        uint256   budget;        // In NIVE tokens
         bytes     parameters;
         TaskStatus status;
         address   assignedAgent;
@@ -39,6 +39,17 @@ interface ITaskManager {
     event TaskCompleted(bytes32 indexed taskId, bytes result);
     event TaskVerified(bytes32 indexed taskId, address indexed verifier);
     event TaskDisputed(bytes32 indexed taskId, address indexed disputer);
+
+    // ────────────────────────────────
+    //  Queries
+    // ────────────────────────────────
+
+    /// @notice On-chain commitment to the delivered result: sha256(result)
+    ///         as recorded at completion (0 for tasks never completed).
+    /// @dev SHA-256 (precompile 0x02), not keccak256 — the Groth16 execution
+    ///      circuit proves SHA-256(preimage) == published result, so the
+    ///      commitment chain proof → result → task uses one hash function.
+    function getResultHash(bytes32 taskId) external view returns (bytes32);
 
     // ────────────────────────────────
     //  Task Lifecycle

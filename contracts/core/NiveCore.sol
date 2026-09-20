@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IAtlasCore} from "../interfaces/IAtlasCore.sol";
+import {INiveCore} from "../interfaces/INiveCore.sol";
 import {IAgentRegistry} from "../interfaces/IAgentRegistry.sol";
 import {ITaskManager} from "../interfaces/ITaskManager.sol";
 import {ISettlementEngine} from "../interfaces/ISettlementEngine.sol";
-import {IAtlasBridge} from "../interfaces/IAtlasBridge.sol";
+import {INiveBridge} from "../interfaces/INiveBridge.sol";
 
-/// @title AtlasCore
-/// @notice Core protocol contract — entry point for all Atlas operations
+/// @title NiveCore
+/// @notice Core protocol contract — entry point for all Nive operations
 /// @dev This is the main contract that coordinates agent registration, task
 ///      lifecycle, cross-ecosystem messaging, and economic settlement across
 ///      Robinhood Chain, EVM ecosystems, and Virtuals Protocol.
-contract AtlasCore is IAtlasCore {
+contract NiveCore is INiveCore {
     // ────────────────────────────────
     //  State
     // ────────────────────────────────
 
     /// @dev Protocol version tracking
-    bytes32 public constant override VERSION = keccak256("atlas-core-v0.1.3");
+    bytes32 public constant override VERSION = keccak256("nive-core-v0.1.3");
 
     /// @dev Supported ecosystems
     bytes32 public constant override ECOSYSTEM_ROBINHOOD = keccak256("robinhood-chain");
@@ -33,7 +33,7 @@ contract AtlasCore is IAtlasCore {
     IAgentRegistry    public immutable agentRegistry;
     ITaskManager      public immutable taskManager;
     ISettlementEngine public immutable settlementEngine;
-    IAtlasBridge      public immutable bridge;
+    INiveBridge      public immutable bridge;
 
     mapping(address => GuardianInfo) public guardians;
     address[] public guardianList;
@@ -59,7 +59,7 @@ contract AtlasCore is IAtlasCore {
         agentRegistry    = IAgentRegistry(_agentRegistry);
         taskManager      = ITaskManager(_taskManager);
         settlementEngine = ISettlementEngine(_settlementEngine);
-        bridge           = IAtlasBridge(_bridge);
+        bridge           = INiveBridge(_bridge);
         protocolVersion  = 1;
         governor         = msg.sender;
     }
@@ -69,7 +69,7 @@ contract AtlasCore is IAtlasCore {
     // ────────────────────────────────
 
     modifier onlyGovernor() {
-        require(msg.sender == governor, "AtlasCore: not governor");
+        require(msg.sender == governor, "NiveCore: not governor");
         _;
     }
 
@@ -77,11 +77,11 @@ contract AtlasCore is IAtlasCore {
     //  Guardian Management
     // ────────────────────────────────
 
-    /// @inheritdoc IAtlasCore
+    /// @inheritdoc INiveCore
     function registerGuardian(uint256 stakeAmount) external override {
-        require(!paused, "AtlasCore: paused");
-        require(stakeAmount >= MIN_GUARDIAN_STAKE, "AtlasCore: insufficient stake");
-        require(guardians[msg.sender].stake == 0, "AtlasCore: already guardian");
+        require(!paused, "NiveCore: paused");
+        require(stakeAmount >= MIN_GUARDIAN_STAKE, "NiveCore: insufficient stake");
+        require(guardians[msg.sender].stake == 0, "NiveCore: already guardian");
 
         guardians[msg.sender] = GuardianInfo({
             staker: msg.sender,
@@ -94,9 +94,9 @@ contract AtlasCore is IAtlasCore {
         emit GuardianRegistered(msg.sender, stakeAmount);
     }
 
-    /// @inheritdoc IAtlasCore
+    /// @inheritdoc INiveCore
     function slashGuardian(address guardian, uint256 amount) external override onlyGovernor {
-        require(guardians[guardian].stake >= amount, "AtlasCore: insufficient stake");
+        require(guardians[guardian].stake >= amount, "NiveCore: insufficient stake");
         guardians[guardian].stake -= amount;
         guardians[guardian].tasksSlashed++;
         emit GuardianSlashed(guardian, amount);
@@ -106,29 +106,29 @@ contract AtlasCore is IAtlasCore {
     //  Protocol Management
     // ────────────────────────────────
 
-    /// @inheritdoc IAtlasCore
+    /// @inheritdoc INiveCore
     function pause() external override onlyGovernor {
-        require(!paused, "AtlasCore: already paused");
+        require(!paused, "NiveCore: already paused");
         paused = true;
         emit ProtocolPaused(msg.sender);
     }
 
-    /// @inheritdoc IAtlasCore
+    /// @inheritdoc INiveCore
     function unpause() external override onlyGovernor {
-        require(paused, "AtlasCore: not paused");
+        require(paused, "NiveCore: not paused");
         paused = false;
         emit ProtocolUnpaused(msg.sender);
     }
 
     /// @notice Transfer governor authority (multisig/DAO rotation).
     function setGovernor(address newGovernor) external onlyGovernor {
-        require(newGovernor != address(0), "AtlasCore: zero governor");
+        require(newGovernor != address(0), "NiveCore: zero governor");
         address old = governor;
         governor = newGovernor;
         emit GovernorUpdated(old, newGovernor);
     }
 
-    /// @inheritdoc IAtlasCore
+    /// @inheritdoc INiveCore
     function getGuardianCount() external view override returns (uint256) {
         return guardianList.length;
     }

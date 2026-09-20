@@ -1,6 +1,6 @@
-"""AtlasBridge relayer: watch `MessageSent` outbox events, attest, deliver.
+"""NiveBridge relayer: watch `MessageSent` outbox events, attest, deliver.
 
-Flow per message (see contracts/core/AtlasBridge.sol):
+Flow per message (see contracts/core/NiveBridge.sol):
   1. Observe `MessageSent(messageId indexed, targetEcosystem, sender indexed)`
      on a source chain; recover `payload`/`sender` via `getOutboxMessage`.
   2. Recover `sourceNonce` by recomputing the contract's canonical id —
@@ -35,6 +35,7 @@ import time
 from dataclasses import dataclass, field
 
 from .chain import (
+    TOPIC_MESSAGE_SENT,
     BridgeReader,
     JsonRpcClient,
     MessageSentEvent,
@@ -47,7 +48,7 @@ from .config import ChainConfig, RelayerConfig, ecosystem_name
 SELECTOR_VERIFY_MESSAGE = keccak256(b"verifyMessage(bytes32,bool)")[:4].hex()
 SELECTOR_DELIVER_MESSAGE = keccak256(b"deliverMessage(bytes32,bytes,bytes)")[:4].hex()
 
-GUARDIAN_QUORUM = 2  # mirror of AtlasBridge.GUARDIAN_QUORUM
+GUARDIAN_QUORUM = 2  # mirror of NiveBridge.GUARDIAN_QUORUM
 
 
 # ────────────────────────────────
@@ -156,8 +157,11 @@ class Signer:
         if not 1 <= self.d < _N:
             raise ValueError("private key out of range")
         pub = _point_mul(self.d, (_GX, _GY))
+        # keccak(pubkey) is 32 bytes; an address is the LAST 20 bytes.
+        # ([-40:] on bytes would slice nothing and yield a 64-hex-char,
+        # malformed address that real RPC nodes reject.)
         self.address = _checksum_address(
-            "0x" + keccak256(pub[0].to_bytes(32, "big") + pub[1].to_bytes(32, "big"))[-40:].hex()
+            "0x" + keccak256(pub[0].to_bytes(32, "big") + pub[1].to_bytes(32, "big"))[-20:].hex()
         )
 
     def sign_tx(self, chain_id: int, nonce: int, to: str, data: bytes,
@@ -171,12 +175,19 @@ class Signer:
         point = _point_mul(k, (_GX, _GY))
         r = point[0] % _N
         s = pow(k, -1, _N) * (z + r * self.d) % _N
+        # Recovery parity comes from the nonce point BEFORE any mirroring:
+        # low-s normalization flips s to its mirror, whose recovery point
+        # has the opposite parity — the recid must be flipped along with it,
+        # or ecrecover attributes the tx to the wrong address.
+        recid = 0 if point[1] % 2 == 0 else 1
         if s > _N // 2:
             s = _N - s
-        recid = 0 if point[1] % 2 == 0 else 1
+            recid ^= 1
         v = recid + 35 + chain_id * 2
-        sig = r.to_bytes(32, "big") + s.to_bytes(32, "big")
-        return _rlp_encode([nonce, gas_price, gas, to_bytes, value, data, v, sig])
+        # Legacy tx is RLP([...v, r, s]) with r and s as SEPARATE integer
+        # items (minimal big-endian). Packing them into one 64-byte blob
+        # produces a transaction no node will decode.
+        return _rlp_encode([nonce, gas_price, gas, to_bytes, value, data, v, r, s])
 
 
 # ────────────────────────────────
@@ -215,7 +226,7 @@ class TrackedMessage:
 # ────────────────────────────────
 
 
-class AtlasRelayer:
+class NiveRelayer:
     """Polls source bridges for `MessageSent`, attests, delivers on target.
 
     One instance handles any number of tracked chains; routing is driven by
@@ -284,7 +295,9 @@ class AtlasRelayer:
         touched: list[TrackedMessage] = []
         while cursor <= confirmed_head:
             end = min(cursor + chain.max_block_range - 1, confirmed_head)
-            logs = client.get_logs(cursor, end, chain.bridge_address)
+            logs = client.get_logs(
+                cursor, end, chain.bridge_address, topics=[TOPIC_MESSAGE_SENT]
+            )
             for event in parse_message_sent_logs(logs, chain.chain_id):
                 tracked = self._track(event, chain)
                 if tracked is not None:
@@ -442,17 +455,35 @@ class AtlasRelayer:
             msg.source.chain_id,
             msg.source_nonce,
         ])
+        # deliverMessage(bytes32,bytes,bytes): the two `bytes` args are
+        # dynamic, so the head carries WORD-RELATIVE OFFSETS to their
+        # [len][data] blocks — inlining the blocks here would make the
+        # bridge read a length as an offset and revert with empty data.
+        payload_block = _abi_bytes(msg.payload)
+        proof_block = _abi_bytes(proof)
         calldata = (
             bytes.fromhex(SELECTOR_DELIVER_MESSAGE)
             + _word(msg.message_id)
-            + _abi_bytes(msg.payload)
-            + _abi_bytes(proof)
+            + (0x60).to_bytes(32, "big")
+            + (0x60 + len(payload_block)).to_bytes(32, "big")
+            + payload_block
+            + proof_block
         )
         tx_hash = self._send(target, target.bridge_address, calldata)
         msg.delivery_tx = tx_hash
         msg.state = MessageState.DELIVERING
         msg.updated_at = time.time()
         self._log("deliver", msg=msg, tx=tx_hash)
+        # Confirm on-chain truth: the bridge only writes the inbox record on
+        # a successful delivery, so it — not the tx status alone — decides
+        # whether the message reached its target.
+        reader = BridgeReader(
+            JsonRpcClient(target.rpc_url), target.bridge_address, target.chain_id
+        )
+        if reader.is_delivered(msg.message_id):
+            msg.state = MessageState.DELIVERED
+            msg.updated_at = time.time()
+            self._log("delivered", msg=msg, tx=tx_hash)
         return True
 
     def _send(self, target: ChainConfig, to: str, calldata: bytes) -> str:
@@ -467,7 +498,15 @@ class AtlasRelayer:
             to=to,
             data=calldata,
         )
-        return client.send_raw_transaction("0x" + raw.hex())
+        tx_hash = client.send_raw_transaction("0x" + raw.hex())
+        # Wait for the receipt: a reverted tx otherwise leaves the tracked
+        # message in DELIVERING/attesting limbo with no error to retry on.
+        receipt = client.wait_for_receipt(tx_hash, timeout_seconds=20.0)
+        if receipt is None:
+            raise RuntimeError(f"tx {tx_hash} not mined within 20s")
+        if receipt.get("status") != "0x1":
+            raise RuntimeError(f"tx {tx_hash} reverted on-chain")
+        return tx_hash
 
     # ── Misc ──────────────────────────────────────────────────────────
 

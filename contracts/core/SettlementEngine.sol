@@ -49,6 +49,7 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     error SettlementEngine__VerifierNotConfigured();
     error SettlementEngine__VerificationPayloadMalformed();
     error SettlementEngine__ProofTaskMismatch();
+    error SettlementEngine__ResultHashNotRecorded();
     error SettlementEngine__InvalidProof();
 
     // ────────────────────────────────
@@ -97,7 +98,7 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     /// @dev taskId => bonder => bonded amount
     mapping(bytes32 => mapping(address => uint256)) private _bonds;
 
-    /// @notice Pluggable ZK proof verifier (Atlas Verifier). Zero address =
+    /// @notice Pluggable ZK proof verifier (Nive Verifier). Zero address =
     ///         disabled: settle() then trusts governor verification alone.
     IVerifier public verifier;
 
@@ -359,8 +360,20 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
     /// @dev ZK proof gate for settle(). No-op while no verifier is configured
     ///      (V1 governor-trust mode). When configured, `verification` must be
     ///      `abi.encode(bytes proof, uint256[] publicInputs)` and the proof
-    ///      must verify with publicInputs[0] == uint256(taskId), so a proof
-    ///      accepted for one task can never settle another.
+    ///      must be bound to the task via the canonical 128-bit limb layout:
+    ///
+    ///        publicInputs[0] = taskId_lo  (low 128 bits of taskId)
+    ///        publicInputs[1] = taskId_hi  (high 128 bits of taskId)
+    ///        publicInputs[2] = resultHash_lo (optional, low 128 bits)
+    ///        publicInputs[3] = resultHash_hi (optional, high 128 bits)
+    ///
+    ///      Both 128-bit limbs are always < r, so they survive Groth16 scalar
+    ///      reduction unchanged and reconstruct the exact 256-bit id. This
+    ///      matters for soundness: binding the RAW id (>= r about 60% of the
+    ///      time) would verify a statement over (id mod r), and an attacker
+    ///      could mint a second task id congruent mod r and replay one
+    ///      legitimate proof to settle both tasks. It also keeps inputs
+    ///      compatible with provers that reject >= r (snarkjs checkField).
     function _verifyProof(bytes32 taskId, bytes calldata verification) internal {
         if (address(verifier) == address(0)) return;
 
@@ -371,8 +384,38 @@ contract SettlementEngine is ISettlementEngine, ReentrancyGuard {
         uint256[] memory publicInputs;
         (proof, publicInputs) = abi.decode(verification, (bytes, uint256[]));
 
-        if (publicInputs.length == 0 || publicInputs[0] != uint256(taskId)) {
+        // Canonical task binding: exactly [taskId_lo, taskId_hi, ...]
+        // with both limbs reconstructing the full 256-bit task id.
+        if (
+            publicInputs.length < 2
+                || publicInputs[0] > type(uint128).max
+                || publicInputs[1] > type(uint128).max
+                || (publicInputs[1] << 128 | publicInputs[0]) != uint256(taskId)
+        ) {
             revert SettlementEngine__ProofTaskMismatch();
+        }
+        // Optional result binding: when the circuit commits to a result
+        // hash, it must occupy limbs [2..3] and reconstruct the exact value
+        // the TaskManager recorded at completion (sha256 — matching the
+        // circuit's statement, see TaskManager.getResultHash).
+        if (publicInputs.length != 0 && publicInputs.length != 2 && publicInputs.length != 4) {
+            revert SettlementEngine__ProofTaskMismatch();
+        }
+        if (publicInputs.length == 4) {
+            bytes32 recordedHash = taskManager.getResultHash(taskId);
+            if (
+                publicInputs[2] > type(uint128).max
+                    || publicInputs[3] > type(uint128).max
+                    || (publicInputs[3] << 128 | publicInputs[2]) != uint256(recordedHash)
+            ) {
+                revert SettlementEngine__ProofTaskMismatch();
+            }
+            if (recordedHash == bytes32(0)) {
+                revert SettlementEngine__ResultHashNotRecorded();
+            }
+            if (publicInputs[2] == 0 && publicInputs[3] == 0) {
+                revert SettlementEngine__InvalidProof();
+            }
         }
 
         bool valid = verifier.verifyProof(proof, publicInputs);

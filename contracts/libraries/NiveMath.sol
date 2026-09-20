@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title AtlasMath
-/// @notice Shared math utilities for the Atlas protocol
-library AtlasMath {
+/// @title NiveMath
+/// @notice Shared math utilities for the Nive protocol
+library NiveMath {
     // ────────────────────────────────
     //  Constants
     // ────────────────────────────────
@@ -19,7 +19,7 @@ library AtlasMath {
 
     /// @notice Calculate performance fee for a given profit
     function calculateFee(uint256 profit, uint256 feeBps) internal pure returns (uint256) {
-        require(feeBps <= MAX_FEE_BPS, "AtlasMath: fee too high");
+        require(feeBps <= MAX_FEE_BPS, "NiveMath: fee too high");
         return (profit * feeBps) / BPS_DENOMINATOR;
     }
 
@@ -30,7 +30,7 @@ library AtlasMath {
 
     /// @notice Calculate slashing amount
     function calculateSlash(uint256 stakedAmount, uint256 slashBps) internal pure returns (uint256) {
-        require(slashBps <= BPS_DENOMINATOR, "AtlasMath: invalid slash");
+        require(slashBps <= BPS_DENOMINATOR, "NiveMath: invalid slash");
         return (stakedAmount * slashBps) / BPS_DENOMINATOR;
     }
 
@@ -54,8 +54,8 @@ library AtlasMath {
     //  Token Amounts
     // ────────────────────────────────
 
-    /// @notice Convert ATLAS to wei-like unit (18 decimals)
-    function toAtlas(uint256 amount) internal pure returns (uint256) {
+    /// @notice Convert NIVE to wei-like unit (18 decimals)
+    function toNive(uint256 amount) internal pure returns (uint256) {
         return amount * 1e18;
     }
 }

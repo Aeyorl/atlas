@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title IAtlasCore
-/// @notice Core protocol interface for the Atlas Agent Coordination Layer
-/// @dev All Atlas protocol entry points converge through this interface
-interface IAtlasCore {
+/// @title INiveCore
+/// @notice Core protocol interface for the Nive Agent Coordination Layer
+/// @dev All Nive protocol entry points converge through this interface
+interface INiveCore {
     // ────────────────────────────────
     //  Types
     // ────────────────────────────────
@@ -44,13 +44,13 @@ interface IAtlasCore {
     //  Guardian Operations
     // ────────────────────────────────
 
-    /// @notice Register as a protocol guardian by staking ATLAS tokens
-    /// @param stakeAmount Amount of ATLAS to stake (must exceed MIN_GUARDIAN_STAKE)
+    /// @notice Register as a protocol guardian by staking NIVE tokens
+    /// @param stakeAmount Amount of NIVE to stake (must exceed MIN_GUARDIAN_STAKE)
     function registerGuardian(uint256 stakeAmount) external;
 
     /// @notice Slash a guardian's stake (governance only)
     /// @param guardian Address of the guardian to slash
-    /// @param amount Amount of ATLAS to slash
+    /// @param amount Amount of NIVE to slash
     function slashGuardian(address guardian, uint256 amount) external;
 
     // ────────────────────────────────

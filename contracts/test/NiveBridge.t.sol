@@ -2,17 +2,17 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {AtlasBridge} from "../core/AtlasBridge.sol";
-import {IAtlasBridge} from "../interfaces/IAtlasBridge.sol";
+import {NiveBridge} from "../core/NiveBridge.sol";
+import {INiveBridge} from "../interfaces/INiveBridge.sol";
 
-contract AtlasBridgeTest is Test {
-    AtlasBridge internal bridge;
+contract NiveBridgeTest is Test {
+    NiveBridge internal bridge;
     address internal governor;
     address internal relayer;
     address internal app;
     address internal coreStub;
 
-    // 5 guardians mirroring the AtlasCore committee default
+    // 5 guardians mirroring the NiveCore committee default
     address[5] internal guardians;
 
     bytes32 constant ROBINHOOD = keccak256("robinhood-chain");
@@ -30,7 +30,7 @@ contract AtlasBridgeTest is Test {
             guardians[i] = makeAddr(string.concat("guardian", vm.toString(i)));
         }
 
-        bridge = new AtlasBridge(EVM, governor);
+        bridge = new NiveBridge(EVM, governor);
         vm.prank(governor);
         bridge.setCore(coreStub);
 
@@ -46,7 +46,7 @@ contract AtlasBridgeTest is Test {
 
     /// @notice Send `PAYLOAD` from `source` (this caller's chain context) and
     ///         capture the provenance a relayer would observe.
-    function _send(AtlasBridge source, bytes32 targetEcosystem, address sender)
+    function _send(NiveBridge source, bytes32 targetEcosystem, address sender)
         internal
         returns (bytes32 id, uint256 nonce, uint256 chainIdAtSend)
     {
@@ -57,7 +57,7 @@ contract AtlasBridgeTest is Test {
     }
 
     function _deliver(
-        AtlasBridge dest,
+        NiveBridge dest,
         bytes32 id,
         bytes32 sourceEcosystem,
         address sourceSender,
@@ -70,7 +70,7 @@ contract AtlasBridgeTest is Test {
     }
 
     /// @notice Governor + 2 committee guardians = quorum (2-of-5 + governor).
-    function _reachQuorum(AtlasBridge b, bytes32 id) internal {
+    function _reachQuorum(NiveBridge b, bytes32 id) internal {
         vm.prank(governor);
         b.verifyMessage(id, true);
         vm.prank(guardians[0]);
@@ -90,7 +90,7 @@ contract AtlasBridgeTest is Test {
         assertTrue(id != bytes32(0));
         assertEq(bridge.outboxCount(), 1);
 
-        AtlasBridge.OutboxMessage memory m = bridge.getOutboxMessage(id);
+        NiveBridge.OutboxMessage memory m = bridge.getOutboxMessage(id);
         assertEq(m.targetEcosystem, VIRTUALS);
         assertEq(m.sender, app);
         assertEq(m.payload, PAYLOAD);
@@ -100,7 +100,7 @@ contract AtlasBridgeTest is Test {
         bytes32 nextId =
             keccak256(abi.encode(EVM, VIRTUALS, PAYLOAD, app, block.chainid, uint256(1)));
         vm.expectEmit(true, false, false, true);
-        emit IAtlasBridge.MessageSent(nextId, VIRTUALS, app);
+        emit INiveBridge.MessageSent(nextId, VIRTUALS, app);
         vm.prank(app);
         bytes32 actual = bridge.sendMessage(VIRTUALS, PAYLOAD);
         assertEq(actual, nextId);
@@ -109,13 +109,13 @@ contract AtlasBridgeTest is Test {
 
     function test_SendMessage_SameEcosystemReverts() public {
         vm.prank(app);
-        vm.expectRevert(AtlasBridge.AtlasBridge__SameEcosystem.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__SameEcosystem.selector);
         bridge.sendMessage(EVM, PAYLOAD);
     }
 
     function test_SendMessage_UnknownEcosystemReverts() public {
         vm.prank(app);
-        vm.expectRevert(AtlasBridge.AtlasBridge__InvalidEcosystem.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__InvalidEcosystem.selector);
         bridge.sendMessage(keccak256("solana"), PAYLOAD);
     }
 
@@ -135,7 +135,7 @@ contract AtlasBridgeTest is Test {
         assertTrue(bridge.sendMessage(VIRTUALS, PAYLOAD) != id);
 
         // Different target ecosystem → different id (from a Robinhood source)
-        AtlasBridge rh = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge rh = new NiveBridge(ROBINHOOD, governor);
         vm.prank(app);
         bytes32 toEvm = rh.sendMessage(EVM, PAYLOAD);
         vm.prank(app);
@@ -149,7 +149,7 @@ contract AtlasBridgeTest is Test {
 
     function test_Deliver_FullPath_FromRealSourceInstance() public {
         // Source instance stands in for the Robinhood Chain deployment
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         vm.chainId(42170);
         (bytes32 id, uint256 nonce, uint256 srcChain) = _send(source, EVM, app);
         vm.chainId(1);
@@ -163,7 +163,7 @@ contract AtlasBridgeTest is Test {
 
         assertTrue(_deliver(bridge, id, ROBINHOOD, app, srcChain, nonce));
 
-        IAtlasBridge.CrossChainMessage memory m = bridge.getMessage(id);
+        INiveBridge.CrossChainMessage memory m = bridge.getMessage(id);
         assertTrue(m.delivered);
         assertEq(m.messageId, id);
         assertEq(m.sourceEcosystem, ROBINHOOD);
@@ -174,35 +174,35 @@ contract AtlasBridgeTest is Test {
     }
 
     function test_Deliver_SecondDeliveryReverts() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id, uint256 nonce, uint256 srcChain) = _send(source, EVM, app);
         _reachQuorum(bridge, id);
         assertTrue(_deliver(bridge, id, ROBINHOOD, app, srcChain, nonce));
 
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__AlreadyDelivered.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__AlreadyDelivered.selector);
         bridge.deliverMessage(id, PAYLOAD, abi.encode(ROBINHOOD, app, srcChain, nonce));
     }
 
     function test_Deliver_PayloadMismatchReverts() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id,, ) = _send(source, EVM, app);
         _reachQuorum(bridge, id);
 
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__PayloadMismatch.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__PayloadMismatch.selector);
         bridge.deliverMessage(id, hex"ffff", abi.encode(ROBINHOOD, app, uint256(1), uint256(0)));
     }
 
     function test_Deliver_WrongTargetInstanceReverts() public {
-        (AtlasBridge source, bytes32 id, uint256 nonce, uint256 srcChain) = _sendFromRobinhood(app);
+        (NiveBridge source, bytes32 id, uint256 nonce, uint256 srcChain) = _sendFromRobinhood(app);
         _reachQuorum(bridge, id);
 
         // A destination on a *different* ecosystem must reject it — the id
         // binds the target ecosystem.
-        AtlasBridge virtualsDest = new AtlasBridge(VIRTUALS, governor);
+        NiveBridge virtualsDest = new NiveBridge(VIRTUALS, governor);
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__PayloadMismatch.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__PayloadMismatch.selector);
         virtualsDest.deliverMessage(
             id, PAYLOAD, abi.encode(ROBINHOOD, app, uint256(1), uint256(0))
         );
@@ -215,9 +215,9 @@ contract AtlasBridgeTest is Test {
     /// @dev Robinhood source on chain 42170, payload sent to EVM at nonce 0.
     function _sendFromRobinhood(address sender)
         internal
-        returns (AtlasBridge source, bytes32 id, uint256 nonce, uint256 srcChain)
+        returns (NiveBridge source, bytes32 id, uint256 nonce, uint256 srcChain)
     {
-        source = new AtlasBridge(ROBINHOOD, governor);
+        source = new NiveBridge(ROBINHOOD, governor);
         vm.chainId(42170);
         (id, nonce, srcChain) = _send(source, EVM, sender);
         vm.chainId(1);
@@ -229,14 +229,14 @@ contract AtlasBridgeTest is Test {
 
         // Different claimed sender → different recomputed id → mismatch
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__PayloadMismatch.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__PayloadMismatch.selector);
         bridge.deliverMessage(
             id, PAYLOAD, abi.encode(ROBINHOOD, makeAddr("imposter"), srcChain, nonce)
         );
 
         // Tampered nonce → mismatch
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__PayloadMismatch.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__PayloadMismatch.selector);
         bridge.deliverMessage(id, PAYLOAD, abi.encode(ROBINHOOD, app, srcChain, nonce + 1));
     }
 
@@ -246,18 +246,18 @@ contract AtlasBridgeTest is Test {
         _reachQuorum(bridge, id);
 
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__InvalidEcosystem.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__InvalidEcosystem.selector);
         bridge.deliverMessage(id, PAYLOAD, abi.encode(unknown, app, uint256(1), uint256(0)));
     }
 
     function test_Deliver_ZeroMessageIdReverts() public {
         vm.prank(relayer);
-        vm.expectRevert(AtlasBridge.AtlasBridge__ZeroMessageId.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__ZeroMessageId.selector);
         bridge.deliverMessage(bytes32(0), PAYLOAD, abi.encode(ROBINHOOD, app, uint256(1), uint256(0)));
     }
 
     function test_Deliver_DoesNotConsumeAttestationsWhenQuorumUnmet() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id, uint256 nonce, uint256 srcChain) = _send(source, EVM, app);
 
         assertFalse(_deliver(bridge, id, ROBINHOOD, app, srcChain, nonce));
@@ -273,7 +273,7 @@ contract AtlasBridgeTest is Test {
     // ────────────────────────────────
 
     function test_VerifyMessage_QuorumMet_ExactBoundary() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id,, ) = _send(source, EVM, app);
 
         vm.prank(guardians[0]);
@@ -287,16 +287,16 @@ contract AtlasBridgeTest is Test {
     }
 
     function test_VerifyMessage_NonGuardianReverts() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id,, ) = _send(source, EVM, app);
 
         vm.prank(app);
-        vm.expectRevert(AtlasBridge.AtlasBridge__NotGuardian.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__NotGuardian.selector);
         bridge.verifyMessage(id, true);
     }
 
     function test_VerifyMessage_DuplicateVoteIgnored() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id,, ) = _send(source, EVM, app);
 
         vm.prank(guardians[0]);
@@ -310,7 +310,7 @@ contract AtlasBridgeTest is Test {
     }
 
     function test_VerifyMessage_FlipVoteIgnored() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id,, ) = _send(source, EVM, app);
 
         vm.prank(guardians[0]);
@@ -323,7 +323,7 @@ contract AtlasBridgeTest is Test {
     }
 
     function test_VerifyMessage_RejectionsDoNotBlockDelivery() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id, uint256 nonce, uint256 srcChain) = _send(source, EVM, app);
 
         for (uint256 i = 1; i < 5; i++) {
@@ -352,13 +352,13 @@ contract AtlasBridgeTest is Test {
     }
 
     function test_VerifyMessage_AfterDeliveryClosesAttestation() public {
-        AtlasBridge source = new AtlasBridge(ROBINHOOD, governor);
+        NiveBridge source = new NiveBridge(ROBINHOOD, governor);
         (bytes32 id, uint256 nonce, uint256 srcChain) = _send(source, EVM, app);
         _reachQuorum(bridge, id);
         assertTrue(_deliver(bridge, id, ROBINHOOD, app, srcChain, nonce));
 
         vm.prank(guardians[2]);
-        vm.expectRevert(AtlasBridge.AtlasBridge__AttestationClosed.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__AttestationClosed.selector);
         bridge.verifyMessage(id, true);
     }
 
@@ -373,15 +373,15 @@ contract AtlasBridgeTest is Test {
 
         // Old governor loses authority
         vm.prank(governor);
-        vm.expectRevert(AtlasBridge.AtlasBridge__NotGovernor.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__NotGovernor.selector);
         bridge.setGovernor(governor);
     }
 
     function test_Admin_SetCoreAndGuardianGate() public {
         // Fresh bridge without core: only the governor may attest
-        AtlasBridge bare = new AtlasBridge(EVM, governor);
+        NiveBridge bare = new NiveBridge(EVM, governor);
         vm.prank(guardians[0]);
-        vm.expectRevert(AtlasBridge.AtlasBridge__NotGuardian.selector);
+        vm.expectRevert(NiveBridge.NiveBridge__NotGuardian.selector);
         bare.verifyMessage(bytes32("x"), true);
 
         // After setCore, registered active guardians are recognized
@@ -398,8 +398,8 @@ contract AtlasBridgeTest is Test {
 
     function test_MultiEcosystem_IndependentInstancesPerEcosystem() public {
         // One instance per ecosystem, same governor
-        AtlasBridge rh = new AtlasBridge(ROBINHOOD, governor);
-        AtlasBridge virt = new AtlasBridge(VIRTUALS, governor);
+        NiveBridge rh = new NiveBridge(ROBINHOOD, governor);
+        NiveBridge virt = new NiveBridge(VIRTUALS, governor);
 
         assertEq(rh.localEcosystem(), ROBINHOOD);
         assertEq(bridge.localEcosystem(), EVM);
@@ -427,11 +427,11 @@ contract AtlasBridgeTest is Test {
 
     function test_MultiEcosystem_MessageFromEvmToVirtuals() public {
         vm.chainId(8453);
-        AtlasBridge evmSource = new AtlasBridge(EVM, governor);
+        NiveBridge evmSource = new NiveBridge(EVM, governor);
         (bytes32 id, uint256 nonce, uint256 srcChain) = _send(evmSource, VIRTUALS, app);
         vm.chainId(1);
 
-        AtlasBridge virt = new AtlasBridge(VIRTUALS, governor);
+        NiveBridge virt = new NiveBridge(VIRTUALS, governor);
         vm.prank(governor);
         virt.setCore(coreStub);
 
@@ -444,14 +444,14 @@ contract AtlasBridgeTest is Test {
 
         assertTrue(_deliver(virt, id, EVM, app, srcChain, nonce));
 
-        IAtlasBridge.CrossChainMessage memory m = virt.getMessage(id);
+        INiveBridge.CrossChainMessage memory m = virt.getMessage(id);
         assertTrue(m.delivered);
         assertEq(m.sourceEcosystem, EVM);
         assertEq(m.targetEcosystem, VIRTUALS);
     }
 }
 
-/// @dev Minimal IAtlasCore stub matching the real `guardians` getter shape:
+/// @dev Minimal INiveCore stub matching the real `guardians` getter shape:
 ///      (address staker, uint256 stake, bool active, uint256 tasksVerified, uint256 tasksSlashed).
 ///      Guardians must be explicitly registered via {setMember}.
 contract ActiveGuardianCoreStub {

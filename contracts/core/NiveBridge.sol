@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IAtlasBridge} from "../interfaces/IAtlasBridge.sol";
-import {IAtlasCore} from "../interfaces/IAtlasCore.sol";
+import {INiveBridge} from "../interfaces/INiveBridge.sol";
+import {INiveCore} from "../interfaces/INiveCore.sol";
 
-/// @title AtlasBridge
+/// @title NiveBridge
 /// @notice Cross-ecosystem message bus between Robinhood Chain, EVM ecosystems,
 ///         and Virtuals Protocol.
 /// @dev V1 is an attested message bus with one bridge instance per ecosystem:
@@ -19,29 +19,29 @@ import {IAtlasCore} from "../interfaces/IAtlasCore.sol";
 ///         security boundary.
 ///      `messageId` binds every provenance field, so a relayer cannot mix
 ///      payloads, senders, or source ecosystems; a mismatch reverts.
-contract AtlasBridge is IAtlasBridge {
+contract NiveBridge is INiveBridge {
     // ────────────────────────────────
     //  Errors
     // ────────────────────────────────
 
-    error AtlasBridge__ZeroGovernor();
-    error AtlasBridge__InvalidEcosystem();
-    error AtlasBridge__SameEcosystem();
-    error AtlasBridge__ZeroMessageId();
-    error AtlasBridge__WrongTargetEcosystem();
-    error AtlasBridge__PayloadMismatch();
-    error AtlasBridge__AlreadyDelivered();
-    error AtlasBridge__NotGuardian();
-    error AtlasBridge__AttestationClosed();
-    error AtlasBridge__ZeroCore();
-    error AtlasBridge__NotGovernor();
+    error NiveBridge__ZeroGovernor();
+    error NiveBridge__InvalidEcosystem();
+    error NiveBridge__SameEcosystem();
+    error NiveBridge__ZeroMessageId();
+    error NiveBridge__WrongTargetEcosystem();
+    error NiveBridge__PayloadMismatch();
+    error NiveBridge__AlreadyDelivered();
+    error NiveBridge__NotGuardian();
+    error NiveBridge__AttestationClosed();
+    error NiveBridge__ZeroCore();
+    error NiveBridge__NotGovernor();
 
     // ────────────────────────────────
     //  Modifiers
     // ────────────────────────────────
 
     modifier onlyGovernor() {
-        if (msg.sender != governor) revert AtlasBridge__NotGovernor();
+        if (msg.sender != governor) revert NiveBridge__NotGovernor();
         _;
     }
 
@@ -49,13 +49,13 @@ contract AtlasBridge is IAtlasBridge {
     //  Constants
     // ────────────────────────────────
 
-    /// @dev Mirrors the ecosystem constants on AtlasCore.
+    /// @dev Mirrors the ecosystem constants on NiveCore.
     bytes32 public constant ECOSYSTEM_ROBINHOOD = keccak256("robinhood-chain");
     bytes32 public constant ECOSYSTEM_EVM       = keccak256("evm");
     bytes32 public constant ECOSYSTEM_VIRTUALS  = keccak256("virtuals");
 
     /// @dev Distinct guardian attestations required to deliver a message.
-    ///      Matches the default AtlasCore.GUARDIAN_COMMITTEE_SIZE (5) — 2-of-5.
+    ///      Matches the default NiveCore.GUARDIAN_COMMITTEE_SIZE (5) — 2-of-5.
     uint256 public constant GUARDIAN_QUORUM = 2;
 
     /// @dev Committee size this bridge's quorum is calibrated against.
@@ -83,9 +83,9 @@ contract AtlasBridge is IAtlasBridge {
     ///         multisig/DAO or the Guardian committee.
     address public governor;
 
-    /// @notice AtlasCore deployment on this chain — source of the registered
+    /// @notice NiveCore deployment on this chain — source of the registered
     ///         guardian set. Set post-deploy (deployment is circular).
-    IAtlasCore public core;
+    INiveCore public core;
 
     /// @dev messageId => outgoing message (this instance is the source)
     mapping(bytes32 => OutboxMessage) private _outbox;
@@ -114,8 +114,8 @@ contract AtlasBridge is IAtlasBridge {
     // ────────────────────────────────
 
     constructor(bytes32 _localEcosystem, address _governor) {
-        if (_governor == address(0)) revert AtlasBridge__ZeroGovernor();
-        if (!_isValidEcosystem(_localEcosystem)) revert AtlasBridge__InvalidEcosystem();
+        if (_governor == address(0)) revert NiveBridge__ZeroGovernor();
+        if (!_isValidEcosystem(_localEcosystem)) revert NiveBridge__InvalidEcosystem();
         localEcosystem = _localEcosystem;
         governor = _governor;
     }
@@ -124,16 +124,16 @@ contract AtlasBridge is IAtlasBridge {
     //  Admin
     // ────────────────────────────────
 
-    /// @notice Link this bridge to the chain's AtlasCore for guardian checks.
+    /// @notice Link this bridge to the chain's NiveCore for guardian checks.
     /// @dev Post-deploy call. Until set, only the governor may attest.
     function setCore(address newCore) external onlyGovernor {
-        if (newCore == address(0)) revert AtlasBridge__ZeroCore();
-        core = IAtlasCore(newCore);
+        if (newCore == address(0)) revert NiveBridge__ZeroCore();
+        core = INiveCore(newCore);
     }
 
     /// @notice Transfer governor authority (multisig/DAO rotation).
     function setGovernor(address newGovernor) external onlyGovernor {
-        if (newGovernor == address(0)) revert AtlasBridge__ZeroGovernor();
+        if (newGovernor == address(0)) revert NiveBridge__ZeroGovernor();
         governor = newGovernor;
     }
 
@@ -141,13 +141,13 @@ contract AtlasBridge is IAtlasBridge {
     //  Outbound
     // ────────────────────────────────
 
-    /// @inheritdoc IAtlasBridge
+    /// @inheritdoc INiveBridge
     function sendMessage(
         bytes32 targetEcosystem,
         bytes calldata payload
     ) external override returns (bytes32 messageId) {
-        if (!_isValidEcosystem(targetEcosystem)) revert AtlasBridge__InvalidEcosystem();
-        if (targetEcosystem == localEcosystem) revert AtlasBridge__SameEcosystem();
+        if (!_isValidEcosystem(targetEcosystem)) revert NiveBridge__InvalidEcosystem();
+        if (targetEcosystem == localEcosystem) revert NiveBridge__SameEcosystem();
 
         messageId = keccak256(
             abi.encode(localEcosystem, targetEcosystem, payload, msg.sender, block.chainid, outboxCount)
@@ -168,7 +168,7 @@ contract AtlasBridge is IAtlasBridge {
     //  Inbound
     // ────────────────────────────────
 
-    /// @inheritdoc IAtlasBridge
+    /// @inheritdoc INiveBridge
     /// @dev `proof` packs the source provenance, exactly as observed on the
     ///      source chain:
     ///      abi.encode(sourceEcosystem, sourceSender, sourceChainId, sourceNonce).
@@ -185,13 +185,13 @@ contract AtlasBridge is IAtlasBridge {
         bytes calldata payload,
         bytes calldata proof
     ) external override returns (bool) {
-        if (messageId == bytes32(0)) revert AtlasBridge__ZeroMessageId();
-        if (_inbox[messageId].delivered) revert AtlasBridge__AlreadyDelivered();
+        if (messageId == bytes32(0)) revert NiveBridge__ZeroMessageId();
+        if (_inbox[messageId].delivered) revert NiveBridge__AlreadyDelivered();
 
         (bytes32 sourceEcosystem, address sourceSender, uint256 sourceChainId, uint256 sourceNonce) =
             abi.decode(proof, (bytes32, address, uint256, uint256));
 
-        if (!_isValidEcosystem(sourceEcosystem)) revert AtlasBridge__InvalidEcosystem();
+        if (!_isValidEcosystem(sourceEcosystem)) revert NiveBridge__InvalidEcosystem();
 
         // This instance only accepts messages addressed to its ecosystem.
         // The target is bound into the messageId, so this check is implied by
@@ -199,10 +199,10 @@ contract AtlasBridge is IAtlasBridge {
         bytes32 expected = keccak256(
             abi.encode(sourceEcosystem, localEcosystem, payload, sourceSender, sourceChainId, sourceNonce)
         );
-        if (expected != messageId) revert AtlasBridge__PayloadMismatch();
+        if (expected != messageId) revert NiveBridge__PayloadMismatch();
 
         if (validAttestations[messageId] < GUARDIAN_QUORUM) {
-            emit MessageFailed(messageId, bytes("atlas-bridge: quorum not met"));
+            emit MessageFailed(messageId, bytes("nive-bridge: quorum not met"));
             return false;
         }
 
@@ -224,15 +224,15 @@ contract AtlasBridge is IAtlasBridge {
     //  Guardian attestation
     // ────────────────────────────────
 
-    /// @inheritdoc IAtlasBridge
+    /// @inheritdoc INiveBridge
     /// @dev Guardians attest after observing the source-chain MessageSent
     ///      event; delivery is possible once quorum is reached. Repeat votes
     ///      are ignored (idempotent). Explicit rejections are recorded but do
     ///      not block delivery — a quorum of valid votes governs in V1.
     function verifyMessage(bytes32 messageId, bool valid) external override {
-        if (messageId == bytes32(0)) revert AtlasBridge__ZeroMessageId();
-        if (_inbox[messageId].delivered) revert AtlasBridge__AttestationClosed();
-        if (!_isGuardian(msg.sender)) revert AtlasBridge__NotGuardian();
+        if (messageId == bytes32(0)) revert NiveBridge__ZeroMessageId();
+        if (_inbox[messageId].delivered) revert NiveBridge__AttestationClosed();
+        if (!_isGuardian(msg.sender)) revert NiveBridge__NotGuardian();
 
         if (_hasVoted[messageId][msg.sender]) return; // idempotent dedup
         _hasVoted[messageId][msg.sender] = true;
@@ -251,7 +251,7 @@ contract AtlasBridge is IAtlasBridge {
     //  Queries
     // ────────────────────────────────
 
-    /// @inheritdoc IAtlasBridge
+    /// @inheritdoc INiveBridge
     /// @dev Returns the delivered inbox record for incoming messages; a stub
     ///      with `delivered = false` for anything not (yet) delivered. Outbox
     ///      state is exposed via {getOutboxMessage}.

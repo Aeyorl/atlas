@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title IAgentRegistry
 /// @notice On-chain registry for AI agent identity and capability declarations
-/// @dev Every agent must register before participating in Atlas protocol.
+/// @dev Every agent must register before participating in Nive protocol.
 ///      Agents declare their capabilities, pricing, and execution wallet.
 interface IAgentRegistry {
     // ────────────────────────────────
@@ -16,7 +16,7 @@ interface IAgentRegistry {
         string    uri;                // Agent metadata endpoint
         bytes32[] capabilities;       // E.g., "TRADE", "ANALYZE", "VERIFY"
         address   executionWallet;
-        uint256   minFee;             // Minimum fee per task (in ATLAS)
+        uint256   minFee;             // Minimum fee per task (in NIVE)
         bool      active;
         uint256   totalTasks;
         uint256   successfulTasks;

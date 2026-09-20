@@ -1,4 +1,4 @@
-# Atlas Protocol — Architecture Overview
+# Nive Protocol — Architecture Overview
 
 ```
 ┌─────────────────────────────────────┐
@@ -21,14 +21,14 @@
 
 ### Implemented (on-chain, this repo)
 
-- **Contracts**: AtlasCore (governance/guardians), AgentRegistry (identity +
+- **Contracts**: NiveCore (governance/guardians), AgentRegistry (identity +
   capabilities), TaskManager (task lifecycle state machine), SettlementEngine
-  (escrow, fees, bonds, slashing, ZK-gated settlement), AtlasBridge (per-ecosystem
-  attested message bus), AtlasAgentVault (ERC-4626)
+  (escrow, fees, bonds, slashing, ZK-gated settlement), NiveBridge (per-ecosystem
+  attested message bus), NiveAgentVault (ERC-4626)
 - **ZK verification**: pluggable `IVerifier` interface wired into settlement with
   task-id-bound public inputs; concrete Groth16 verifier pending
-- **Deploy**: Foundry script (`scripts/deploy/DeployAtlas.s.sol`) with per-ecosystem
-  bridge binding (`ATLAS_ECOSYSTEM` env)
+- **Deploy**: Foundry script (`scripts/deploy/DeployNive.s.sol`) with per-ecosystem
+  bridge binding (`NIVE_ECOSYSTEM` env)
 - **Tests**: 139 Foundry tests across 7 suites (`forge test`)
 
 ### Pending (off-chain / future phases)

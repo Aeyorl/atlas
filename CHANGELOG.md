@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Atlas SDK** will be documented in this file.
+All notable changes to **Nive SDK** will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
@@ -35,27 +35,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   preserves governor-trust settlement.
 
 #### Cross-Ecosystem Bridge
-- `AtlasBridge.sol` — attested message bus with one instance per ecosystem
+- `NiveBridge.sol` — attested message bus with one instance per ecosystem
   (`robinhood-chain` | `evm` | `virtuals`):
   - deterministic outbox ids binding source ecosystem, target ecosystem, payload,
     sender, source chain id, and outbox nonce
   - permissionless relayer inbox with tamper-evident proofs bound into the id
-  - 2-of-5 guardian attestation quorum read from the chain's AtlasCore; idempotent
+  - 2-of-5 guardian attestation quorum read from the chain's NiveCore; idempotent
     votes; recorded-but-non-blocking rejections (soft-fail)
 
 #### Governance
-- `AtlasCore` — governor-gated `pause` / `unpause` / `slashGuardian`
+- `NiveCore` — governor-gated `pause` / `unpause` / `slashGuardian`
 
 #### Tooling
 - Foundry deploy script deploying the full stack with post-deploy wiring for the
-  TaskManager ↔ SettlementEngine and Bridge ↔ AtlasCore circular dependencies;
-  ecosystem selected via `ATLAS_ECOSYSTEM` env
+  TaskManager ↔ SettlementEngine and Bridge ↔ NiveCore circular dependencies;
+  ecosystem selected via `NIVE_ECOSYSTEM` env
 
 ### Fixed
 
-- Upstream compile errors: `AtlasAgentVault` constructor (invalid ERC-4626
+- Upstream compile errors: `NiveAgentVault` constructor (invalid ERC-4626
   delegation) and stray placeholder line
-- `IAtlasCore` / `ITaskManager` / `ISettlementEngine` interface–implementation
+- `INiveCore` / `ITaskManager` / `ISettlementEngine` interface–implementation
   mismatches (struct getters, `payable createTask`, missing plumbing signatures)
 - `.gitignore` space-separated patterns not matching `lib/`, `out/`, `cache/`
 - `TaskManager.resolveDispute(false)` refunded escrow without zeroing the record,
@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
-- Unguarded `AtlasCore.pause()` / `slashGuardian()` now governor-gated
+- Unguarded `NiveCore.pause()` / `slashGuardian()` now governor-gated
 - Escrow custodianship moved from TaskManager into SettlementEngine; only the
   wired TaskManager can move task funds
 - ZK proofs bound to task ids in public inputs — proofs cannot be replayed across
@@ -83,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - Guardian API rate limiting and circuit breaker
 - Cross-ecosystem message retry with backoff
-- ATLAS staking delegation contract
+- NIVE staking delegation contract
 
 ### Changed
 - Optimized Guardian verification gas costs (-32%)
@@ -101,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Cross-ecosystem task routing with priority queues
 
 ### Changed
-- Updated Guardian staking minimum from 5,000 to 10,000 ATLAS
+- Updated Guardian staking minimum from 5,000 to 10,000 NIVE
 - Enhanced reputation scoring algorithm
 
 ### Fixed
@@ -125,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Agent registry with capability declarations
 - Task engine with bidding and settlement
 - Guardian committee election and rotation
-- Atlas Bridge MVP (RH Chain ↔ Base testnet)
+- Nive Bridge MVP (RH Chain ↔ Base testnet)
 - CLI v0.1.0 with agent management commands
 - Python SDK alpha
 - TypeScript SDK alpha
@@ -145,7 +145,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Guardian committee election mechanism
-- ATLAS token staking contract
+- NIVE token staking contract
 - Slashing conditions and dispute resolution
 
 ## [0.0.7] - 2026-05-22
@@ -172,7 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.0.4] - 2026-03-20
 
 ### Added
-- Atlas Bridge MVP (RH Chain ↔ Base)
+- Nive Bridge MVP (RH Chain ↔ Base)
 - Cross-chain message relayer
 - Message verification contracts
 

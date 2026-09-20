@@ -1,4 +1,4 @@
-"""Minimal JSON-RPC client and AtlasBridge ABI decoding for the relayer.
+"""Minimal JSON-RPC client and NiveBridge ABI decoding for the relayer.
 
 Standard-library only (urllib) so the relayer runs without heavy
 dependencies. Web3.py can replace this layer later without touching
@@ -8,6 +8,7 @@ the service logic.
 from __future__ import annotations
 
 import json
+import time
 import urllib.request
 from dataclasses import dataclass
 from typing import Any
@@ -61,21 +62,37 @@ class JsonRpcClient:
         tag = "latest" if block is None else hex(block)
         return self.call("eth_call", [{"to": to, "data": data}, tag]) or "0x"
 
-    def get_logs(self, from_block: int, to_block: int, address: str) -> list[dict]:
-        return self.call(
-            "eth_getLogs",
-            [
-                {
-                    "fromBlock": hex(from_block),
-                    "toBlock": hex(to_block),
-                    "address": address,
-                    "topics": [TOPIC_MESSAGE_SENT],
-                }
-            ],
-        ) or []
+    def get_logs(self, from_block: int, to_block: int, address: str,
+                 topics: list[str] | None = None) -> list[dict]:
+        """eth_getLogs over `address`; `topics` (topic-0 list) optional.
+
+        Callers that only need one event type should pass its topic-0 hash
+        for server-side filtering; `None` returns every log the bridge
+        emitted (client-side filtering still applies downstream).
+        """
+        query: dict = {
+            "fromBlock": hex(from_block),
+            "toBlock": hex(to_block),
+            "address": address,
+        }
+        if topics is not None:
+            query["topics"] = topics
+        return self.call("eth_getLogs", [query]) or []
 
     def send_raw_transaction(self, signed_tx: str) -> str:
         return self.call("eth_sendRawTransaction", [signed_tx])
+
+    def wait_for_receipt(
+        self, tx_hash: str, timeout_seconds: float = 60.0, poll: float = 0.25
+    ) -> dict | None:
+        """Poll for a transaction receipt; None on timeout."""
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline:
+            receipt = self.call("eth_getTransactionReceipt", [tx_hash])
+            if receipt is not None:
+                return receipt
+            time.sleep(poll)
+        return None
 
 
 # ────────────────────────────────
@@ -221,16 +238,35 @@ def parse_message_sent_logs(logs: list[dict], chain_id: int) -> list[MessageSent
 SELECTOR_GET_OUTBOX = "0x" + keccak256(b"getOutboxMessage(bytes32)").hex()[:8]
 SELECTOR_OUTBOX_COUNT = "0x" + keccak256(b"outboxCount()").hex()[:8]
 SELECTOR_VALID_ATTESTATIONS = "0x" + keccak256(b"validAttestations(bytes32)").hex()[:8]
+SELECTOR_GET_MESSAGE = "0x" + keccak256(b"getMessage(bytes32)").hex()[:8]
+
+
+def _strip_struct_wrapper(raw: bytes) -> bytes:
+    """Strip the ABI v2 tuple wrapper around a returned struct.
+
+    A function returning a struct `S` ABI-encodes as a one-element tuple:
+    word 0 is the offset of the struct's encoding (always 0x20 for a single
+    struct), and the struct's own head starts there. Field offsets inside
+    the struct are relative to the struct start (word 1 of the response).
+    """
+    if len(raw) < 32:
+        raise ValueError(f"struct response too short: {len(raw)} bytes")
+    offset = int.from_bytes(raw[0:32], "big")
+    if offset != 32:
+        raise ValueError(
+            f"expected ABI v2 struct wrapper (word0 = 0x20), got {offset}"
+        )
+    return raw[32:]
 
 
 def _decode_outbox(data_hex: str) -> tuple[str, str, str, int]:
     """Decode `getOutboxMessage` return: (targetEcosystem, sender, payload, sentAt).
 
-    The getter ABI-encodes the `OutboxMessage` struct:
+    After stripping the ABI v2 wrapper, the `OutboxMessage` struct is:
     head = [target bytes32][sender][payload offset][sentAt], with the bytes
-    tail at `offset` as [length][data]. `offset` is relative to the tuple start.
+    tail at `offset` as [length][data]. `offset` is relative to the struct start.
     """
-    raw = bytes.fromhex(data_hex.removeprefix("0x"))
+    raw = _strip_struct_wrapper(bytes.fromhex(data_hex.removeprefix("0x")))
     if len(raw) < 128:
         raise ValueError(f"outbox response too short: {len(raw)} bytes")
     target_ecosystem = "0x" + raw[0:32].hex()
@@ -246,6 +282,33 @@ def _decode_outbox(data_hex: str) -> tuple[str, str, str, int]:
     return target_ecosystem, sender, "0x" + payload.hex(), sent_at
 
 
+def decode_get_message(data_hex: str) -> dict[str, object]:
+    """Decode `getMessage` return: the CrossChainMessage inbox record.
+
+    After stripping the ABI v2 wrapper, the struct head is
+    [messageId][sourceEcosystem][targetEcosystem][payload offset][sender]
+    [delivered], with the bytes tail at `offset` (relative to the struct
+    start) as [length][data]. A stub record (not yet delivered) carries an
+    empty payload, so its response ends right after the length word.
+    """
+    raw = _strip_struct_wrapper(bytes.fromhex(data_hex.removeprefix("0x")))
+    if len(raw) < 192:
+        raise ValueError(f"getMessage response too short: {len(raw)} bytes")
+    offset = int.from_bytes(raw[96:128], "big")
+    if offset + 32 > len(raw):
+        raise ValueError(f"inbox payload offset out of range: {offset}")
+    payload_len = int.from_bytes(raw[offset:offset + 32], "big")
+    payload = raw[offset + 32: offset + 32 + payload_len]
+    return {
+        "message_id": "0x" + raw[0:32].hex(),
+        "source_ecosystem": "0x" + raw[32:64].hex(),
+        "target_ecosystem": "0x" + raw[64:96].hex(),
+        "sender": _to_checksum_address("0x" + raw[140:160].hex()),
+        "delivered": int.from_bytes(raw[160:192], "big") == 1,
+        "payload": "0x" + payload.hex(),
+    }
+
+
 def _decode_uint(data_hex: str) -> int:
     raw = bytes.fromhex(data_hex.removeprefix("0x"))
     if len(raw) < 32:
@@ -259,7 +322,7 @@ def _decode_uint(data_hex: str) -> int:
 
 
 class BridgeReader:
-    """Read-only view over an AtlasBridge deployment."""
+    """Read-only view over an NiveBridge deployment."""
 
     def __init__(self, client: JsonRpcClient, bridge_address: str, chain_id: int):
         self.client = client
@@ -282,3 +345,20 @@ class BridgeReader:
             self.bridge_address, SELECTOR_VALID_ATTESTATIONS + message_id[2:].rjust(64, "0")
         )
         return _decode_uint(data)
+
+    def is_delivered(self, message_id: str) -> bool:
+        """Whether the target bridge recorded the message as delivered.
+
+        The `delivered` flag is struct word 5 — reading the response's last
+        word instead would land in the payload tail and misreport every
+        delivered message as undelivered.
+        """
+        data = self.client.call_contract(
+            self.bridge_address,
+            SELECTOR_GET_MESSAGE + message_id[2:].rjust(64, "0"),
+        )
+        try:
+            return bool(decode_get_message(data)["delivered"])
+        except ValueError:
+            # Malformed / truncated response: treat as not delivered.
+            return False

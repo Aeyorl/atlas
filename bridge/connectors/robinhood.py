@@ -1,6 +1,7 @@
 """Robinhood Chain bridge connector."""
 from dataclasses import dataclass
 
+
 @dataclass
 class RobinhoodConnector:
     chain_id: int = 4663

@@ -1,4 +1,4 @@
-# Atlas Smart Contract Architecture
+# Nive Smart Contract Architecture
 
 All contracts target Solidity ^0.8.24, are built with Foundry, and use OpenZeppelin v5.1.0.
 Current state: **139 tests passing across 7 suites** (`forge test`).
@@ -7,11 +7,11 @@ Current state: **139 tests passing across 7 suites** (`forge test`).
 
 | Interface | Purpose |
 |-----------|---------|
-| IAtlasCore | Protocol entry, guardian management, pause/slash |
+| INiveCore | Protocol entry, guardian management, pause/slash |
 | IAgentRegistry | Agent identity & capabilities |
 | ITaskManager | Task lifecycle (create→bid→execute→settle) |
 | ISettlementEngine | Payment settlement & slashing |
-| IAtlasBridge | Cross-ecosystem messaging |
+| INiveBridge | Cross-ecosystem messaging |
 | IVerifier | Pluggable ZK proof verification (Groth16-ready) |
 
 ## Implemented Contracts
@@ -57,7 +57,7 @@ authority. Follows checks-effects-interactions throughout.
   invalid proofs. The verifier is invoked via STATICCALL — a malicious verifier
   cannot mutate engine state. No verifier set = governor-trust mode (V1 default).
 
-### `AtlasBridge` — cross-ecosystem message bus
+### `NiveBridge` — cross-ecosystem message bus
 
 One bridge instance per ecosystem (`robinhood-chain` | `evm` | `virtuals`), deployed
 with its local ecosystem binding. Attested security, permissionless relaying.
@@ -67,27 +67,27 @@ with its local ecosystem binding. Attested security, permissionless relaying.
 - **Inbox**: any relayer calls `deliverMessage(id, payload, proof)` where
   `proof = abi.encode(sourceEcosystem, sender, sourceChainId, sourceNonce)` — every
   field is bound into the id, so tampering or wrong-target delivery reverts
-- **Guardian quorum**: `verifyMessage(id, valid)` gated on the chain's AtlasCore
+- **Guardian quorum**: `verifyMessage(id, valid)` gated on the chain's NiveCore
   guardian set (2-of-5 quorum; governor counts as one attester). Duplicate/flip
   votes are idempotently ignored; explicit rejections are recorded but do not block
   delivery (soft-fail design). Pre-delivery attestation is open, post-delivery closed.
 
-### `AtlasCore` — governance & guardian registry
+### `NiveCore` — governance & guardian registry
 
 Protocol entry: guardian registration (min stake enforced), pause/unpause, and
 guardian slashing — all governance functions governor-gated.
 
-### `AtlasAgentVault` — ERC-4626 agent-managed vault (upstream, compile-fixed)
+### `NiveAgentVault` — ERC-4626 agent-managed vault (upstream, compile-fixed)
 
 ## Wiring Model
 
 Circular dependencies are resolved post-deploy, mirroring the deploy script
-(`scripts/deploy/DeployAtlas.s.sol`, ecosystem selected via `ATLAS_ECOSYSTEM` env):
+(`scripts/deploy/DeployNive.s.sol`, ecosystem selected via `NIVE_ECOSYSTEM` env):
 
 ```
 SettlementEngine.setTaskManager(TaskManager)   // engine accepts only TaskManager calls
 TaskManager.setSettlementEngine(engine)        // TaskManager forwards all value
-AtlasBridge.setCore(AtlasCore)                 // bridge reads the guardian set
+NiveBridge.setCore(NiveCore)                 // bridge reads the guardian set
 ```
 
 ## Security Invariants
