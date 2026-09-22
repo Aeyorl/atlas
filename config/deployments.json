@@ -6,13 +6,14 @@
       "chainId": 4663,
       "ecosystem": "robinhood-chain",
       "contracts": {
-        "AgentRegistry": "0x4663000000000000000000000000000000000001",
-        "TaskManager": "0x4663000000000000000000000000000000000002",
-        "SettlementEngine": "0x4663000000000000000000000000000000000003",
-        "NiveBridge": "0x4663000000000000000000000000000000000004",
-        "NiveCore": "0x4663000000000000000000000000000000000005"
+        "AgentRegistry": "0x4bee3427e9c85ec82a4925ccec3984c927d8385d",
+        "TaskManager": "0xbc98de8ad6d9f2c29aa3208f527bcf6e3fb81245",
+        "SettlementEngine": "0xf9d81e2e6d54f3c199cf5edd7a5788f2c5b7be16",
+        "NiveBridge": "0x94efa28ea5d85a9cffb6e1d772cb7359994c7206",
+        "NiveCore": "0xf9d3dfc0b686cabaaa1389600aa1e14dff3fa54f"
       },
-      "status": "active"
+      "status": "deployed",
+      "deployer": "0x8cA71B70C91BD8250073dfDD323b9219Bce6A165"
     },
     "base": {
       "name": "Base Mainnet",
