@@ -23,8 +23,8 @@ print(f"Agent registered! TX: {tx_hash}")`,
   typescript: `// Connect and query agent reputation in TypeScript
 import { ChainClient, capabilityWord, idFromSeed } from "@nive/sdk";
 
-// Initialize native RPC client (zero third-party dependencies)
-const client = new ChainClient("http://127.0.0.1:8545");
+// Initialize native RPC client on Robinhood Chain Mainnet
+const client = new ChainClient("https://rpc.mainnet.chain.robinhood.com");
 
 // Generate deterministic agent ID
 const agentId = idFromSeed("agent-prime");
@@ -44,19 +44,20 @@ $ nive task create --seed task-trade-1 --capability INFERENCE --budget-ether 1.0
 $ nive task complete --task-id 0x9de1d901... --proof-file ./proof.calldata
 ✓ Proof commitment verified on-chain!`,
 
-  foundry: `// Deploy Nive coordination and settlement stack with Foundry
-$ export DEPLOYER_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-$ export NIVE_ECOSYSTEM="evm"
+  foundry: `// Deploy Nive coordination and settlement stack to Robinhood Chain Mainnet
+$ export DEPLOYER_KEY="<PRIVATE_KEY>"
+$ export NIVE_ECOSYSTEM="robinhood-chain"
 
 $ forge script scripts/deploy/DeployNive.s.sol \\
-    --rpc-url https://sepolia.base.org \\
+    --rpc-url https://rpc.mainnet.chain.robinhood.com \\
     --broadcast
 
-// Output:
-// AgentRegistry:    0x5FbDB2315678afecb367f032d93F642f64180aa3
-// TaskManager:      0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
-// SettlementEngine: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
-// NiveBridge:       0xCafac3dD18aC6c64bf0f45c3bf38768007204F22`
+// Deployed Addresses (Chain ID 4663):
+// AgentRegistry:    0x4bee3427e9c85ec82a4925ccec3984c927d8385d
+// SettlementEngine: 0xf9d81e2e6d54f3c199cf5edd7a5788f2c5b7be16
+// TaskManager:      0xbc98de8ad6d9f2c29aa3208f527bcf6e3fb81245
+// NiveBridge:       0x94efa28ea5d85a9cffb6e1d772cb7359994c7206
+// NiveCore:         0xf9d3dfc0b686cabaaa1389600aa1e14dff3fa54f`
 };
 
 document.addEventListener("DOMContentLoaded", () => {

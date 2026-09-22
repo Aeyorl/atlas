@@ -84,6 +84,23 @@
 
     <!-- Main Protocol Container -->
     <main class="main-content" id="mainContainer">
+      <!-- Live Mainnet Contracts Banner -->
+      <section class="contracts-banner glass-panel" id="liveContractsBanner" style="margin-bottom: 24px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-left: 3px solid #00f0ff;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 1.1rem;">⚡</span>
+          <div>
+            <div style="font-size: 0.75rem; color: #00f0ff; letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase;">Robinhood Chain Mainnet (Chain 4663) // Verified Deployments</div>
+            <div style="font-size: 0.82rem; color: #94a3b8;">Autonomous settlement stack active on live ledger</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono, monospace); font-size: 0.76rem;">
+          <a href="https://explorer.chain.robinhood.com/address/0x4bee3427e9c85ec82a4925ccec3984c927d8385d" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(0,240,255,0.08); border: 1px solid rgba(0,240,255,0.25); color: #00f0ff; padding: 4px 8px; border-radius: 4px; text-decoration: none;">Registry: 0x4bee...85d ↗</a>
+          <a href="https://explorer.chain.robinhood.com/address/0xf9d81e2e6d54f3c199cf5edd7a5788f2c5b7be16" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); color: #818cf8; padding: 4px 8px; border-radius: 4px; text-decoration: none;">Settlement: 0xf9d8...e16 ↗</a>
+          <a href="https://explorer.chain.robinhood.com/address/0xbc98de8ad6d9f2c29aa3208f527bcf6e3fb81245" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.25); color: #c084fc; padding: 4px 8px; border-radius: 4px; text-decoration: none;">TaskManager: 0xbc98...245 ↗</a>
+          <a href="https://explorer.chain.robinhood.com/address/0x94efa28ea5d85a9cffb6e1d772cb7359994c7206" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); color: #34d399; padding: 4px 8px; border-radius: 4px; text-decoration: none;">Bridge: 0x94ef...206 ↗</a>
+        </div>
+      </section>
+
       <!-- High-Level Protocol Metrics Ribbon -->
       <section class="metrics-grid" id="metricsGrid" aria-label="Key Protocol Metrics">
         <div class="metric-card glass-panel" id="cardAgentsMetric">

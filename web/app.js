@@ -680,8 +680,15 @@ document.addEventListener("DOMContentLoaded", () => {
     networkSelect.addEventListener("change", (e) => {
       state.selectedNetwork = e.target.value;
       showToast(`Switched network to ${e.target.options[e.target.selectedIndex].text}`);
+      updateContractsBanner();
       loadProtocolData();
     });
+  }
+
+  function updateContractsBanner() {
+    const banner = document.getElementById("liveContractsBanner");
+    if (!banner) return;
+    banner.style.display = state.selectedNetwork === "robinhood-chain" ? "flex" : "none";
   }
 
   // Manual Refresh Button
@@ -710,5 +717,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Initial Load
+  updateContractsBanner();
   loadProtocolData();
 });
