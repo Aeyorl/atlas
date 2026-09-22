@@ -59,7 +59,10 @@ __all__ = [
     "ChainClient",
     "Contracts",
     "capability_word",
+    "compute_verification_limbs",
+    "encode_zk_verification",
     "id_from_seed",
+    "split_bytes32_to_limbs",
 ]
 
 ECOSYSTEMS = {
@@ -93,6 +96,56 @@ def capability_word(text: str) -> str:
 def id_from_seed(seed: str) -> str:
     """Deterministic bytes32 id from a seed string."""
     return "0x" + keccak256(seed.encode()).hex()
+
+
+def split_bytes32_to_limbs(hex_or_bytes: str | bytes) -> tuple[int, int]:
+    """Split a 256-bit word into (lo_128, hi_128) limbs.
+
+    Matches SettlementEngine canonical limb binding:
+    (hi << 128) | lo == uint256(word)
+    """
+    if isinstance(hex_or_bytes, bytes):
+        raw = hex_or_bytes.rjust(32, b"\x00")
+    else:
+        raw = bytes.fromhex(hex_or_bytes.removeprefix("0x")).rjust(32, b"\x00")
+    val = int.from_bytes(raw[-32:], "big")
+    lo = val & ((1 << 128) - 1)
+    hi = val >> 128
+    return (lo, hi)
+
+
+def compute_verification_limbs(
+    task_id: str | bytes,
+    result_hash: str | bytes | None = None,
+) -> list[int]:
+    """Compute public input limbs [taskId_lo, taskId_hi (, result_lo, result_hi)]."""
+    task_lo, task_hi = split_bytes32_to_limbs(task_id)
+    limbs = [task_lo, task_hi]
+    if result_hash is not None:
+        res_lo, res_hi = split_bytes32_to_limbs(result_hash)
+        limbs.extend([res_lo, res_hi])
+    return limbs
+
+
+def encode_zk_verification(proof: bytes, public_inputs: list[int]) -> bytes:
+    """Encode (proof, publicInputs) as abi.encode(bytes, uint256[]).
+
+    Matches SettlementEngine._verifyProof abi.decode(verification, (bytes, uint256[])).
+    """
+    proof_bytes = proof
+    proof_pad = (32 - (len(proof_bytes) % 32)) % 32
+    encoded_proof = (
+        len(proof_bytes).to_bytes(32, "big")
+        + proof_bytes
+        + b"\x00" * proof_pad
+    )
+    offset0 = (64).to_bytes(32, "big")
+    offset1 = (64 + len(encoded_proof)).to_bytes(32, "big")
+
+    encoded_inputs = len(public_inputs).to_bytes(32, "big") + b"".join(
+        x.to_bytes(32, "big") for x in public_inputs
+    )
+    return offset0 + offset1 + encoded_proof + encoded_inputs
 
 
 # ────────────────────────────────
@@ -237,8 +290,10 @@ def _decode_bids(data_hex: str) -> list[dict[str, object]]:
 
 
 def _decode_settlement(data_hex: str) -> dict[str, object]:
-    struct = _strip_struct_wrapper(bytes.fromhex(data_hex.removeprefix("0x")))
-    head = _words(struct, 7)
+    raw = bytes.fromhex(data_hex.removeprefix("0x"))
+    if len(raw) >= 32 and int.from_bytes(raw[:32], "big") == 32 and len(raw) >= 32 + (7 * 32):
+        raw = raw[32:]
+    head = _words(raw, 7)
     return {
         "task_id": "0x" + head[0].hex(),
         "agent": _to_checksum_address("0x" + head[1][-20:].hex()),
@@ -501,7 +556,20 @@ class ChainClient:
         """Anyone may settle once verification + the dispute window have passed."""
         return self._transact("task_manager", "settleTask(bytes32)", [task_id])
 
-    # ── SettlementEngine reads ───────────────────────────────────
+    def resolve_dispute(self, task_id: str, agent_valid: bool) -> _TxReceipt:
+        """Governor-only arbitration for a disputed task.
+
+        `agent_valid=True` settles in the agent's favor; False refunds the
+        full escrow to the creator and marks the task Failed.
+        """
+        return self._transact("task_manager", "resolveDispute(bytes32,bool)",
+                              [task_id, agent_valid])
+
+    def withdraw_escrow(self, task_id: str) -> _TxReceipt:
+        """Creator-only: recover the escrow from a Failed task."""
+        return self._transact("task_manager", "withdrawEscrow(bytes32)", [task_id])
+
+    # ── SettlementEngine reads & writes ──────────────────────────
 
     def escrow(self, task_id: str) -> int:
         self._require_contracts("settlement")
@@ -511,6 +579,31 @@ class ChainClient:
         self._require_contracts("settlement")
         return _decode_settlement(
             self._call("settlement", "getSettlement(bytes32)", [task_id]))
+
+    def post_bond(self, task_id: str, amount_wei: int) -> _TxReceipt:
+        """Post or top up a bond on `task_id`."""
+        self._require_contracts("settlement")
+        return self._transact("settlement", "postBond(bytes32)", [task_id], value=amount_wei)
+
+    def withdraw_bond(self, task_id: str) -> _TxReceipt:
+        """Withdraw posted bond once task is terminal."""
+        self._require_contracts("settlement")
+        return self._transact("settlement", "withdrawBond(bytes32)", [task_id])
+
+    def get_bond(self, task_id: str, bonder: str) -> int:
+        """Query bond amount posted by `bonder` on `task_id`."""
+        self._require_contracts("settlement")
+        return _decode_uint(self._call("settlement", "getBond(bytes32,address)", [task_id, bonder]))
+
+    def slash_bond(self, task_id: str, bonder: str, amount_wei: int) -> _TxReceipt:
+        """Governor-only: slash `bonder` bond and forward to task creator."""
+        self._require_contracts("settlement")
+        return self._transact("settlement", "slash(bytes32,address,uint256)", [task_id, bonder, amount_wei])
+
+    def has_proof_verified(self, task_id: str) -> bool:
+        """Check whether `task_id` settlement was gated by a verified ZK proof."""
+        self._require_contracts("settlement")
+        return _decode_uint(self._call("settlement", "hasProofVerified(bytes32)", [task_id])) == 1
 
     # ── NiveBridge ───────────────────────────────────────────────
 

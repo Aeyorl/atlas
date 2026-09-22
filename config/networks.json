@@ -1,0 +1,71 @@
+{
+  "$schema": "./networks.schema.json",
+  "version": "1.0.0",
+  "default": "robinhood-chain",
+  "networks": {
+    "robinhood-chain": {
+      "name": "Robinhood Chain Mainnet",
+      "chainId": 4663,
+      "ecosystem": "robinhood-chain",
+      "rpcUrl": "https://rpc.mainnet.chain.robinhood.com",
+      "rpcEnv": "ROBINHOOD_RPC_URL",
+      "explorer": "https://explorer.chain.robinhood.com",
+      "currency": {
+        "name": "Robinhood Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    "base": {
+      "name": "Base Mainnet",
+      "chainId": 8453,
+      "ecosystem": "evm",
+      "rpcUrl": "https://mainnet.base.org",
+      "rpcEnv": "BASE_RPC_URL",
+      "explorer": "https://basescan.org",
+      "currency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    "arbitrum": {
+      "name": "Arbitrum One Mainnet",
+      "chainId": 42161,
+      "ecosystem": "evm",
+      "rpcUrl": "https://arb1.arbitrum.io/rpc",
+      "rpcEnv": "ARBITRUM_RPC_URL",
+      "explorer": "https://arbiscan.io",
+      "currency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    },
+    "virtuals": {
+      "name": "Virtuals Protocol Mainnet",
+      "chainId": 146,
+      "ecosystem": "virtuals",
+      "rpcUrl": "https://rpc.virtuals.io",
+      "rpcEnv": "VIRTUALS_RPC_URL",
+      "explorer": "https://explorer.virtuals.io",
+      "currency": {
+        "name": "Virtuals VIRT",
+        "symbol": "VIRT",
+        "decimals": 18
+      }
+    },
+    "anvil": {
+      "name": "Local Anvil Devnet",
+      "chainId": 31337,
+      "ecosystem": "evm",
+      "rpcUrl": "http://127.0.0.1:8545",
+      "rpcEnv": "ANVIL_RPC_URL",
+      "currency": {
+        "name": "ETH",
+        "symbol": "ETH",
+        "decimals": 18
+      }
+    }
+  }
+}

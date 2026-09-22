@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nive"
+version = "1.0.0"
+description = "Decentralized coordination and settlement protocol for autonomous AI agents on Robinhood Chain Mainnet and EVM"
+readme = "README.md"
+authors = [{ name = "Nive Protocol Contributors" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries",
+]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+nive = "cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sdk*", "runtime*", "cli*", "api*", "integrations*"]

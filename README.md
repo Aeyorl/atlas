@@ -20,7 +20,8 @@
 > the contract-backed Python SDK chain layer (`sdk/python/chain.py`), and a contract-backed
 > CLI (`cli/`). The executor/verifier runtimes, oracle, and TypeScript/Rust SDKs remain
 > scaffolding. See
-> [docs/architecture/CONTRACTS.md](./docs/architecture/CONTRACTS.md) and the
+> [docs/architecture/CONTRACTS.md](./docs/architecture/CONTRACTS.md), the
+> [SDK & CLI developer guide](./docs/guides/SDK_AND_CLI.md), and the
 > [Roadmap](#-roadmap) for details.
 
 ---
@@ -342,7 +343,7 @@ nive/
 ├── docs/               # 📖 Documentation
 │   ├── architecture/   # OVERVIEW, CONTRACTS, SECURITY
 │   ├── api/            # API reference
-│   └── guides/         # Developer guides
+│   └── guides/         # Developer guides (SDK_AND_CLI, GETTING_STARTED)
 ├── sdk/python/         # ⭐ Contract-backed ChainClient + local objects
 ├── cli/                # ⭐ Contract-backed CLI (agent/task/escrow/bridge/guardian)
 ├── bridge/connectors/  # 🚧 Python connector stubs

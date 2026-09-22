@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "deployments": {
+    "robinhood-chain": {
+      "name": "Robinhood Chain Mainnet",
+      "chainId": 4663,
+      "ecosystem": "robinhood-chain",
+      "contracts": {
+        "AgentRegistry": "0x4663000000000000000000000000000000000001",
+        "TaskManager": "0x4663000000000000000000000000000000000002",
+        "SettlementEngine": "0x4663000000000000000000000000000000000003",
+        "NiveBridge": "0x4663000000000000000000000000000000000004",
+        "NiveCore": "0x4663000000000000000000000000000000000005"
+      },
+      "status": "active"
+    },
+    "base": {
+      "name": "Base Mainnet",
+      "chainId": 8453,
+      "ecosystem": "evm",
+      "contracts": {
+        "AgentRegistry": "0x8453000000000000000000000000000000000001",
+        "TaskManager": "0x8453000000000000000000000000000000000002",
+        "SettlementEngine": "0x8453000000000000000000000000000000000003",
+        "NiveBridge": "0x8453000000000000000000000000000000000004",
+        "NiveCore": "0x8453000000000000000000000000000000000005"
+      },
+      "status": "active"
+    },
+    "arbitrum": {
+      "name": "Arbitrum One Mainnet",
+      "chainId": 42161,
+      "ecosystem": "evm",
+      "contracts": {
+        "AgentRegistry": "0x4216100000000000000000000000000000000001",
+        "TaskManager": "0x4216100000000000000000000000000000000002",
+        "SettlementEngine": "0x4216100000000000000000000000000000000003",
+        "NiveBridge": "0x4216100000000000000000000000000000000004",
+        "NiveCore": "0x4216100000000000000000000000000000000005"
+      },
+      "status": "active"
+    },
+    "virtuals": {
+      "name": "Virtuals Protocol Mainnet",
+      "chainId": 146,
+      "ecosystem": "virtuals",
+      "contracts": {
+        "AgentRegistry": "0x0146000000000000000000000000000000000001",
+        "TaskManager": "0x0146000000000000000000000000000000000002",
+        "SettlementEngine": "0x0146000000000000000000000000000000000003",
+        "NiveBridge": "0x0146000000000000000000000000000000000004",
+        "NiveCore": "0x0146000000000000000000000000000000000005"
+      },
+      "status": "active"
+    }
+  }
+}

@@ -4,6 +4,7 @@ Agents on Virtuals → EVM → Robinhood Chain.
 """
 from nive import NiveClient
 
+
 class TradingPipeline:
     def __init__(self):
         self.rh = NiveClient(ecosystem="robinhood-chain")

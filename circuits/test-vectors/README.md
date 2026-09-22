@@ -7,15 +7,18 @@ proof locally).
 ## Derivation (regenerate with these exact steps)
 
 1. Choose the preimage: the ASCII bytes of `"nive-execution-v1-vector"` —
-   24 bytes, zero-padded to the 32-byte circuit capacity.
-   - Split into 32-bit little-endian limbs: limbs 0..5 carry the bytes,
-     limbs 6..31 are zero. `preimageLen = 32` (circuit capacity; note the
-     circuit hashes the full padded buffer — the digest below includes the
-     trailing zeros).
+   24 bytes, zero-padded to the 32-byte circuit capacity (`preimageLen = 24`).
+   - Split into 32-bit little-endian limbs (4 bytes per limb): limbs 0..5
+     carry the 24 bytes, limbs 6..7 are zero (8 limbs total = 32 bytes).
 2. `resultLo/Hi` = SHA-256 of that padded 32-byte buffer, split into
    (low 128 bits, high 128 bits) as decimal strings.
 3. `taskIdLo/Hi` = the (lo, hi) 128-bit limbs of the keccak256 id
    `keccak256("nive-execution-v1-vector")`, as decimal strings.
+
+Regenerate automatically using:
+```bash
+node circuits/prepare-input.mjs <taskIdHex> <preimage> circuits/test-vectors/input.json
+```
 
 IMPORTANT — bit-order check before production setup: circomlib's SHA-256
 `out[i]` is LSB-first within each byte/word; confirm the digest split in the

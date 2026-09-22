@@ -36,7 +36,7 @@ include "node_modules/circomlib/circuits/comparators.circom";
 ///
 ///      Private inputs:
 ///        preimageLen          : byte length of the transcript
-///        preimage[LIMBS * 4]  : transcript packed as 32-bit limbs
+///        preimage[LIMBS]      : transcript packed as 32-bit limbs (LIMBS * 4 bytes)
 ///                               (LSB-first bit order per circomlib)
 template NiveExecution(LIMBS) {
     signal input taskIdLo;              // public
@@ -44,7 +44,7 @@ template NiveExecution(LIMBS) {
     signal input resultLo;              // public
     signal input resultHi;              // public
     signal input preimageLen;
-    signal input preimage[LIMBS * 4];   // 32-bit limbs
+    signal input preimage[LIMBS];       // 32-bit limbs (LIMBS * 4 bytes capacity)
 
     // -- Constraint 1: task id nonzero --------------------------------
     signal taskSum;
@@ -68,8 +68,8 @@ template NiveExecution(LIMBS) {
     // Unpack each 32-bit limb to bits (LSB-first per circomlib Num2Bits)
     // and concatenate into the message bitstream.
     signal msgBits[LIMBS * 4 * 8];
-    component limbToBits[LIMBS * 4];
-    for (var i = 0; i < LIMBS * 4; i++) {
+    component limbToBits[LIMBS];
+    for (var i = 0; i < LIMBS; i++) {
         limbToBits[i] = Num2Bits(32);
         limbToBits[i].in <== preimage[i];
         for (var b = 0; b < 32; b++) {

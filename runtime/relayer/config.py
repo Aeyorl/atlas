@@ -36,8 +36,7 @@ class ChainConfig:
     ecosystem: str            # 0x-prefixed keccak("robinhood-chain"|"evm"|"virtuals")
     bridge_address: str       # NiveBridge proxy/logic address on this chain
 
-    # Delivery signing key. In production this comes from a KMS/HSM;
-    # an env var / config file is acceptable for testnets.
+    # Delivery signing key. In production this comes from a KMS/HSM or secure vault.
     private_key: str | None = None
 
     # Block to start scanning from on first run. None = current head.

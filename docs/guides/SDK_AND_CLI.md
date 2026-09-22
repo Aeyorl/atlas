@@ -174,7 +174,7 @@ On-chain roles and who may do what:
 |------|----------|
 | **Creator** | `create_task`, `accept_bid`, `dispute_task`, `withdraw_escrow` |
 | **Agent** | `submit_bid`, `complete_task` |
-| **Governor** | `verify_task`, `accept_bid` (on-chain only: `resolveDispute`) |
+| **Governor** | `verify_task`, `resolve_dispute`, `accept_bid` |
 | **Anyone** | `settle_task` |
 
 Ground rules enforced by the contracts (violations revert):
@@ -241,11 +241,10 @@ creator.settle_task(task_id)
 print(creator.settlement(task_id)["agent_fee_wei"])   # agent's take
 ```
 
-Also available: `update_agent`, `deactivate_agent`, and `dispute_task`
-(creator, within the window), plus `register_guardian` (§6). Two TaskManager
-methods are not wrapped yet — call the contract directly if needed:
-`resolveDispute` (governor arbitration) and `withdrawEscrow` (creator recovers
-escrow from a failed task).
+Also available: `update_agent`, `deactivate_agent`, `resolve_dispute`
+(governor arbitration: `agent_valid=True` settles in the agent's favor,
+`False` refunds the creator), and `withdraw_escrow` (creator recovers the
+escrow from a Failed task), plus `register_guardian` (§6).
 
 ---
 

@@ -22,8 +22,11 @@ from sdk.python.chain import (
     _decode_settlement,
     _decode_task,
     capability_word,
+    compute_verification_limbs,
     encode_args,
+    encode_zk_verification,
     id_from_seed,
+    split_bytes32_to_limbs,
 )
 
 # ────────────────────────────────
@@ -372,6 +375,29 @@ class TestChainClientWrites:
         with pytest.raises(RuntimeError, match="reverted"):
             client.submit_bid(id_from_seed("t"), 1)
 
+    def test_resolve_dispute_calldata(self, stub: StubTransport) -> None:
+        """Decode the signed tx: selector + (taskId, agentValid)."""
+        client = make_client(stub, key=self.KEY)
+        task_id = id_from_seed("disputed")
+        client.resolve_dispute(task_id, agent_valid=True)
+        fields = _rlp_decode(bytes.fromhex(stub.raw_txs[0].removeprefix("0x")))
+        calldata = fields[5]
+        assert calldata[:4] == keccak256(
+            b"resolveDispute(bytes32,bool)")[:4]
+        assert calldata[4:36] == bytes.fromhex(task_id[2:])
+        assert int.from_bytes(calldata[36:68], "big") == 1
+
+    def test_withdraw_escrow_calldata(self, stub: StubTransport) -> None:
+        """Decode the signed tx: selector + taskId, empty value."""
+        client = make_client(stub, key=self.KEY)
+        task_id = id_from_seed("failed")
+        client.withdraw_escrow(task_id)
+        fields = _rlp_decode(bytes.fromhex(stub.raw_txs[0].removeprefix("0x")))
+        assert int.from_bytes(fields[4], "big") == 0          # no msg.value
+        calldata = fields[5]
+        assert calldata[:4] == keccak256(b"withdrawEscrow(bytes32)")[:4]
+        assert calldata[4:36] == bytes.fromhex(task_id[2:])
+
     def test_send_bridge_message_derives_id(self, stub: StubTransport) -> None:
         local = keccak256(b"evm")
         target = keccak256(b"virtuals")
@@ -451,3 +477,70 @@ class TestHelpers:
     def test_id_from_seed_is_keccak(self) -> None:
         assert id_from_seed("seed") == "0x" + keccak256(b"seed").hex()
         assert id_from_seed("a") != id_from_seed("b")
+
+    def test_split_bytes32_to_limbs_reconstructs_word(self) -> None:
+        raw_word = "0x" + "1234567890abcdef" * 4
+        lo, hi = split_bytes32_to_limbs(raw_word)
+        assert lo <= (1 << 128) - 1
+        assert hi <= (1 << 128) - 1
+        reconstructed = (hi << 128) | lo
+        assert reconstructed == int(raw_word, 16)
+
+    def test_compute_verification_limbs(self) -> None:
+        task_id = id_from_seed("task-limbs")
+        res_hash = id_from_seed("res-limbs")
+
+        # 2 limbs (task only)
+        limbs2 = compute_verification_limbs(task_id)
+        assert len(limbs2) == 2
+        assert ((limbs2[1] << 128) | limbs2[0]) == int(task_id, 16)
+
+        # 4 limbs (task + result)
+        limbs4 = compute_verification_limbs(task_id, res_hash)
+        assert len(limbs4) == 4
+        assert ((limbs4[1] << 128) | limbs4[0]) == int(task_id, 16)
+        assert ((limbs4[3] << 128) | limbs4[2]) == int(res_hash, 16)
+
+    def test_encode_zk_verification_structure(self) -> None:
+        proof = b"\x01\x02\x03\x04"
+        public_inputs = [100, 200, 300, 400]
+        encoded = encode_zk_verification(proof, public_inputs)
+
+        # 2 offset words (64 bytes) + proof header/padded (64 bytes) + inputs header/elements (5 * 32 = 160 bytes)
+        assert len(encoded) == 64 + 64 + 160
+        # Offset 0 is 0x40 = 64
+        assert int.from_bytes(encoded[:32], "big") == 64
+        # Offset 1 is 64 + 64 = 128
+        assert int.from_bytes(encoded[32:64], "big") == 128
+
+
+class TestBonds:
+    KEY = "0x" + "11" * 32
+
+    def test_post_bond_transacts_with_value(self, stub: StubTransport) -> None:
+        client = make_client(stub, self.KEY)
+        task_id = id_from_seed("task-bond")
+        receipt = client.post_bond(task_id, 10 ** 18)
+        assert receipt.status == "0x1"
+        assert len(stub.raw_txs) == 1
+
+    def test_withdraw_bond_transacts(self, stub: StubTransport) -> None:
+        client = make_client(stub, self.KEY)
+        task_id = id_from_seed("task-bond")
+        receipt = client.withdraw_bond(task_id)
+        assert receipt.status == "0x1"
+
+    def test_get_bond_decodes_uint(self, stub: StubTransport) -> None:
+        sel = chain_mod._selector("getBond(bytes32,address)").hex()
+        stub.responses[sel] = "0x" + (5 * 10 ** 17).to_bytes(32, "big").hex()
+        client = make_client(stub)
+        task_id = id_from_seed("task-bond")
+        amount = client.get_bond(task_id, "0x" + "11" * 20)
+        assert amount == 5 * 10 ** 17
+
+    def test_has_proof_verified(self, stub: StubTransport) -> None:
+        sel = chain_mod._selector("hasProofVerified(bytes32)").hex()
+        stub.responses[sel] = "0x" + (1).to_bytes(32, "big").hex()
+        client = make_client(stub)
+        task_id = id_from_seed("task-proof")
+        assert client.has_proof_verified(task_id) is True

@@ -1,8 +1,7 @@
 """Entry point: `python -m runtime.relayer <config.json>`.
 
 Requires NIVE_RELAYER_KEY (the relayer's funding/guardian key) unless the
-config file sets `private_key` per chain. Testnet-grade: the key stays in an
-env var; production deployments should swap in a KMS-backed signer.
+config file sets `private_key` per chain (KMS-backed signer or secure env).
 """
 
 from __future__ import annotations

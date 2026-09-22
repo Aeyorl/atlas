@@ -110,6 +110,42 @@ class StubChain:
         StubChain.last["submit_bid"] = (task_id, fee_wei)
         return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
 
+    def complete_task(self, task_id: str, result: bytes, proof: bytes = b"") -> dict:
+        StubChain.last["complete_task"] = (task_id, result, proof)
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def verify_task(self, task_id: str, valid: bool) -> dict:
+        StubChain.last["verify_task"] = (task_id, valid)
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def dispute_task(self, task_id: str, evidence: bytes = b"") -> dict:
+        StubChain.last["dispute_task"] = (task_id, evidence)
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def resolve_dispute(self, task_id: str, agent_valid: bool) -> dict:
+        StubChain.last["resolve_dispute"] = (task_id, agent_valid)
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def withdraw_escrow(self, task_id: str) -> dict:
+        StubChain.last["withdraw_escrow"] = task_id
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def settle_task(self, task_id: str) -> dict:
+        StubChain.last["settle_task"] = task_id
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def post_bond(self, task_id: str, amount_wei: int) -> dict:
+        StubChain.last["post_bond"] = (task_id, amount_wei)
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
+    def get_bond(self, task_id: str, bonder: str) -> int:
+        StubChain.last["get_bond"] = (task_id, bonder)
+        return 5 * 10 ** 17
+
+    def withdraw_bond(self, task_id: str) -> dict:
+        StubChain.last["withdraw_bond"] = task_id
+        return _StubReceipt("0x" + "ff" * 32, "0x1", 1, 100)
+
     def send_bridge_message(self, target: str, payload: bytes) -> str:
         StubChain.last["bridge"] = (target, payload)
         return id_from_seed("msg")
@@ -232,6 +268,63 @@ class TestWrites:
         target, payload = StubChain.last["bridge"]
         assert target == "virtuals" and payload == b"hi"
         assert id_from_seed("msg") in capsys.readouterr().out
+
+    def test_task_complete_with_proof(self, stub_cls, monkeypatch) -> None:
+        monkeypatch.setenv("NIVE_PRIVATE_KEY", self.KEY)
+        assert run(["task", "complete", "--seed", "t1", "--result", "done", "--proof", "0x1234"]) == 0
+        task_id, result, proof = StubChain.last["complete_task"]
+        assert task_id == id_from_seed("t1")
+        assert result == b"done"
+        assert proof == bytes.fromhex("1234")
+
+    def test_task_verify(self, stub_cls, monkeypatch, capsys) -> None:
+        monkeypatch.setenv("NIVE_PRIVATE_KEY", self.KEY)
+        assert run(["task", "verify", "--seed", "t1"]) == 0
+        assert StubChain.last["verify_task"] == (id_from_seed("t1"), True)
+        assert "verified" in capsys.readouterr().out
+
+        assert run(["task", "verify", "--seed", "t1", "--reject"]) == 0
+        assert StubChain.last["verify_task"] == (id_from_seed("t1"), False)
+        assert "rejected" in capsys.readouterr().out
+
+    def test_task_dispute(self, stub_cls, monkeypatch, capsys) -> None:
+        monkeypatch.setenv("NIVE_PRIVATE_KEY", self.KEY)
+        assert run(["task", "dispute", "--seed", "t1", "--evidence", "bad output"]) == 0
+        assert StubChain.last["dispute_task"] == (id_from_seed("t1"), b"bad output")
+        assert "task disputed" in capsys.readouterr().out
+
+    def test_task_resolve_dispute(self, stub_cls, monkeypatch, capsys) -> None:
+        monkeypatch.setenv("NIVE_PRIVATE_KEY", self.KEY)
+        assert run(["task", "resolve-dispute", "--seed", "t1", "--agent-valid"]) == 0
+        assert StubChain.last["resolve_dispute"] == (id_from_seed("t1"), True)
+        assert "agent's favor" in capsys.readouterr().out
+
+        assert run(["task", "resolve-dispute", "--seed", "t1", "--creator-valid"]) == 0
+        assert StubChain.last["resolve_dispute"] == (id_from_seed("t1"), False)
+        assert "creator's favor" in capsys.readouterr().out
+
+    def test_task_withdraw_escrow(self, stub_cls, monkeypatch, capsys) -> None:
+        monkeypatch.setenv("NIVE_PRIVATE_KEY", self.KEY)
+        assert run(["task", "withdraw-escrow", "--seed", "t1"]) == 0
+        assert StubChain.last["withdraw_escrow"] == id_from_seed("t1")
+        assert "escrow withdrawn" in capsys.readouterr().out
+
+    def test_settlement_get(self, stub_cls, capsys) -> None:
+        assert run(["settlement", "get", "--seed", "t1"]) == 0
+        out = capsys.readouterr().out
+        assert "agent fee" in out and "guardian fee" in out
+
+    def test_bond_lifecycle(self, stub_cls, monkeypatch, capsys) -> None:
+        monkeypatch.setenv("NIVE_PRIVATE_KEY", self.KEY)
+        assert run(["bond", "post", "--seed", "t1", "--amount-ether", "0.5"]) == 0
+        assert StubChain.last["post_bond"] == (id_from_seed("t1"), 5 * 10 ** 17)
+
+        assert run(["bond", "get", "--seed", "t1", "--bonder", "0x" + "aa" * 20]) == 0
+        assert StubChain.last["get_bond"] == (id_from_seed("t1"), "0x" + "aa" * 20)
+        assert "0.5 NIVE" in capsys.readouterr().out
+
+        assert run(["bond", "withdraw", "--seed", "t1"]) == 0
+        assert StubChain.last["withdraw_bond"] == id_from_seed("t1")
 
 
 # ────────────────────────────────

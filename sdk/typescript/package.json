@@ -1,0 +1,29 @@
+{
+  "name": "@nive/sdk",
+  "version": "1.0.0",
+  "description": "Nive Protocol TypeScript SDK — Agent Coordination & Settlement Layer on Robinhood Chain Mainnet & EVM",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    },
+    "./crypto": {
+      "import": "./src/crypto.ts",
+      "types": "./src/crypto.ts"
+    },
+    "./chain": {
+      "import": "./src/chain.ts",
+      "types": "./src/chain.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --experimental-strip-types --test test/*.test.mjs"
+  },
+  "keywords": ["nive", "ai-agents", "coordination", "cross-chain", "zk-proofs", "settlement"],
+  "author": "Nive Protocol",
+  "license": "MIT"
+}

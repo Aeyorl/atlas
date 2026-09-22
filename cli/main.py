@@ -245,9 +245,51 @@ def cmd_task_complete(args: argparse.Namespace) -> None:
     task_id = resolve_id(args.id, args.seed, "task")
     result = Path(args.result_file).read_bytes() if args.result_file \
         else (args.result or "").encode()
-    receipt = client.complete_task(task_id, result)
+    proof = b""
+    if getattr(args, "proof_file", None):
+        proof = Path(args.proof_file).read_bytes()
+    elif getattr(args, "proof", None):
+        proof = bytes.fromhex(args.proof.removeprefix("0x"))
+    receipt = client.complete_task(task_id, result, proof=proof)
     print(f"✅ task completed — tx {receipt.tx_hash} "
           f"({len(result)}B result, sha256 committed on-chain)")
+
+
+def cmd_task_verify(args: argparse.Namespace) -> None:
+    client = load_client(args)
+    require_signer(client)
+    task_id = resolve_id(args.id, args.seed, "task")
+    valid = not getattr(args, "reject", False)
+    receipt = client.verify_task(task_id, valid)
+    status_str = "verified (dispute window open)" if valid else "rejected (failed)"
+    print(f"✅ task {status_str} — tx {receipt.tx_hash}")
+
+
+def cmd_task_dispute(args: argparse.Namespace) -> None:
+    client = load_client(args)
+    require_signer(client)
+    task_id = resolve_id(args.id, args.seed, "task")
+    evidence = (args.evidence or "").encode()
+    receipt = client.dispute_task(task_id, evidence)
+    print(f"✅ task disputed — tx {receipt.tx_hash}")
+
+
+def cmd_task_resolve_dispute(args: argparse.Namespace) -> None:
+    client = load_client(args)
+    require_signer(client)
+    task_id = resolve_id(args.id, args.seed, "task")
+    agent_valid = bool(args.agent_valid)
+    receipt = client.resolve_dispute(task_id, agent_valid)
+    outcome = "in agent's favor (settled)" if agent_valid else "in creator's favor (refunded)"
+    print(f"✅ dispute resolved {outcome} — tx {receipt.tx_hash}")
+
+
+def cmd_task_withdraw_escrow(args: argparse.Namespace) -> None:
+    client = load_client(args)
+    require_signer(client)
+    task_id = resolve_id(args.id, args.seed, "task")
+    receipt = client.withdraw_escrow(task_id)
+    print(f"✅ escrow withdrawn to creator — tx {receipt.tx_hash}")
 
 
 def cmd_task_settle(args: argparse.Namespace) -> None:
@@ -263,6 +305,43 @@ def cmd_task_settle(args: argparse.Namespace) -> None:
         ("protocol fee", fmt_ether(int(settlement["protocol_fee_wei"]))),
         ("settled", settlement["settled"]),
     ])
+
+
+def cmd_settlement_get(args: argparse.Namespace) -> None:
+    task_id = resolve_id(args.id, args.seed, "task")
+    settlement = load_client(args).settlement(task_id)
+    print_kv([
+        ("task id", fmt_word(task_id)),
+        ("agent", settlement["agent"]),
+        ("creator", settlement["creator"]),
+        ("agent fee", fmt_ether(int(settlement["agent_fee_wei"]))),
+        ("guardian fee", fmt_ether(int(settlement["guardian_fee_wei"]))),
+        ("protocol fee", fmt_ether(int(settlement["protocol_fee_wei"]))),
+        ("settled", settlement["settled"]),
+    ])
+
+
+def cmd_bond_post(args: argparse.Namespace) -> None:
+    client = load_client(args)
+    require_signer(client)
+    task_id = resolve_id(args.id, args.seed, "task")
+    amount_wei = parse_ether(args.amount_ether)
+    receipt = client.post_bond(task_id, amount_wei)
+    print(f"✅ bond posted — tx {receipt.tx_hash} ({fmt_ether(amount_wei)})")
+
+
+def cmd_bond_get(args: argparse.Namespace) -> None:
+    task_id = resolve_id(args.id, args.seed, "task")
+    amount = load_client(args).get_bond(task_id, args.bonder)
+    print(f"bond on {fmt_word(task_id)} for {args.bonder}: {fmt_ether(amount)}")
+
+
+def cmd_bond_withdraw(args: argparse.Namespace) -> None:
+    client = load_client(args)
+    require_signer(client)
+    task_id = resolve_id(args.id, args.seed, "task")
+    receipt = client.withdraw_bond(task_id)
+    print(f"✅ bond withdrawn — tx {receipt.tx_hash}")
 
 
 def cmd_escrow(args: argparse.Namespace) -> None:
@@ -374,7 +453,30 @@ def build_parser() -> argparse.ArgumentParser:
     add_id_args(complete, "task")
     complete.add_argument("--result", help="result payload as text")
     complete.add_argument("--result-file", help="read the result payload from a file")
+    complete.add_argument("--proof", help="proof payload as 0x-hex")
+    complete.add_argument("--proof-file", help="read the proof payload from a file")
     complete.set_defaults(func=cmd_task_complete)
+
+    verify = task_sub.add_parser("verify", help="verify task execution (governor)")
+    add_id_args(verify, "task")
+    verify.add_argument("--reject", action="store_true", help="reject the task")
+    verify.set_defaults(func=cmd_task_verify)
+
+    dispute = task_sub.add_parser("dispute", help="dispute a verified task (creator)")
+    add_id_args(dispute, "task")
+    dispute.add_argument("--evidence", help="evidence text for dispute")
+    dispute.set_defaults(func=cmd_task_dispute)
+
+    resolve = task_sub.add_parser("resolve-dispute", help="resolve task dispute (governor)")
+    add_id_args(resolve, "task")
+    res_group = resolve.add_mutually_exclusive_group(required=True)
+    res_group.add_argument("--agent-valid", action="store_true", help="resolve in agent favor (settles)")
+    res_group.add_argument("--creator-valid", action="store_true", help="resolve in creator favor (refunds)")
+    resolve.set_defaults(func=cmd_task_resolve_dispute)
+
+    withdraw = task_sub.add_parser("withdraw-escrow", help="withdraw escrow on failed task (creator)")
+    add_id_args(withdraw, "task")
+    withdraw.set_defaults(func=cmd_task_withdraw_escrow)
 
     settle = task_sub.add_parser("settle", help="settle a verified task")
     add_id_args(settle, "task")
@@ -383,6 +485,26 @@ def build_parser() -> argparse.ArgumentParser:
     esc = sub.add_parser("escrow", help="escrow held for a task")
     add_id_args(esc, "task")
     esc.set_defaults(func=cmd_escrow)
+
+    settlement_p = sub.add_parser("settlement", help="settlement records")
+    settlement_sub = settlement_p.add_subparsers(dest="settlement_command", required=True)
+    sget = settlement_sub.add_parser("get", help="view settlement breakdown")
+    add_id_args(sget, "task")
+    sget.set_defaults(func=cmd_settlement_get)
+
+    bond_p = sub.add_parser("bond", help="agent bond operations")
+    bond_sub = bond_p.add_subparsers(dest="bond_command", required=True)
+    bpost = bond_sub.add_parser("post", help="post or top up task bond")
+    add_id_args(bpost, "task")
+    bpost.add_argument("--amount-ether", required=True, help="bond in NIVE ether")
+    bpost.set_defaults(func=cmd_bond_post)
+    bget = bond_sub.add_parser("get", help="query posted bond")
+    add_id_args(bget, "task")
+    bget.add_argument("--bonder", required=True, help="address of bonder")
+    bget.set_defaults(func=cmd_bond_get)
+    bwith = bond_sub.add_parser("withdraw", help="withdraw bond on terminal task")
+    add_id_args(bwith, "task")
+    bwith.set_defaults(func=cmd_bond_withdraw)
 
     bridge = sub.add_parser("bridge", help="cross-ecosystem messaging")
     bridge_sub = bridge.add_subparsers(dest="bridge_command", required=True)
