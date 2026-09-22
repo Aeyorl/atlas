@@ -18,6 +18,19 @@ NETWORKS_FILE = REPO_ROOT / "config" / "networks.json"
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy" / "DeployNive.s.sol"
 
 
+def load_dotenv() -> None:
+    env_file = REPO_ROOT / ".env"
+    if env_file.exists():
+        with open(env_file, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    k, v = k.strip(), v.strip().strip("'\"")
+                    if k not in os.environ:
+                        os.environ[k] = v
+
+
 def load_networks() -> dict[str, dict]:
     if not NETWORKS_FILE.exists():
         raise FileNotFoundError(f"Networks configuration not found at {NETWORKS_FILE}")
@@ -98,10 +111,11 @@ def main() -> None:
     if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Nive Multi-Chain Deployment Tool")
     parser.add_argument("--network", help="Network key from config/networks.json (or 'list')")
     parser.add_argument("--broadcast", action="store_true", help="Broadcast transactions on-chain")
-    parser.add_argument("--private-key", default=os.environ.get("DEPLOYER_KEY"), help="Deployer private key (hex)")
+    parser.add_argument("--private-key", default=os.environ.get("DEPLOYER_KEY") or os.environ.get("PRIVATE_KEY"), help="Deployer private key (hex)")
     parser.add_argument("--vk", help="Path to verification key JSON for ZK verifier")
     parser.add_argument("--list", action="store_true", help="List configured networks")
 
@@ -120,7 +134,7 @@ def main() -> None:
         print(f"[-] Unknown network '{args.network}'. Available: {', '.join(networks.keys())}")
         sys.exit(1)
 
-    pk = args.private_key or "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"  # default anvil #0
+    pk = args.private_key or os.environ.get("DEPLOYER_KEY") or os.environ.get("PRIVATE_KEY") or "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"  # default anvil #0
     code = deploy_network(args.network, networks[args.network], pk, broadcast=args.broadcast, vk_json_path=args.vk)
     sys.exit(code)
 
