@@ -49,8 +49,8 @@ def get_rpc_url(network_data: dict) -> str:
 def check_chain_connectivity(rpc_url: str, expected_chain_id: int | None = None) -> int:
     """Query eth_chainId from RPC endpoint."""
     payload = json.dumps({"jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1}).encode("utf-8")
-    req = Request(rpc_url, data=payload, headers={"Content-Type": "application/json", "User-Agent": "NiveDeployer/1.0"})
-    with urlopen(req, timeout=5) as res:
+    req = Request(rpc_url, data=payload, headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
+    with urlopen(req, timeout=15) as res:
         data = json.loads(res.read().decode("utf-8"))
         chain_id = int(data.get("result", "0x0"), 16)
         if expected_chain_id is not None and chain_id != expected_chain_id:
@@ -135,6 +135,8 @@ def main() -> None:
         sys.exit(1)
 
     pk = args.private_key or os.environ.get("DEPLOYER_KEY") or os.environ.get("PRIVATE_KEY") or "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"  # default anvil #0
+    if pk and not pk.startswith("0x"):
+        pk = "0x" + pk
     code = deploy_network(args.network, networks[args.network], pk, broadcast=args.broadcast, vk_json_path=args.vk)
     sys.exit(code)
 
