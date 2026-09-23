@@ -1,0 +1,8 @@
+{
+  "name": "nive-protocol",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/explorer", "destination": "/explorer.html" },
+    { "source": "/app", "destination": "/explorer.html" }
+  ]
+}
