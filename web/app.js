@@ -12,11 +12,11 @@ const state = {
   searchQuery: "",
   isLive: false,
   metrics: {
-    agentsCount: 12,
-    tasksCount: 28,
-    escrowEth: "18.40",
-    settledEth: "46.85",
-    bridgeCount: 64,
+    agentsCount: 0,
+    tasksCount: 0,
+    escrowEth: "0.00",
+    settledEth: "0.00",
+    bridgeCount: 0,
   },
   agents: [],
   tasks: [],
@@ -272,20 +272,15 @@ async function loadProtocolData() {
         const taskCount = await taskCountRes.json();
         state.metrics.tasksCount = taskCount.count;
       }
+    } else {
+      state.isLive = false;
+      document.getElementById("connectionStatusText").textContent = "API OFFLINE // CHAIN DEPLOYED";
     }
   } catch {
-    // API server offline or running as static file -> use rich demo dataset
+    // Static/offline mode: preserve truthful empty state rather than simulated activity.
     state.isLive = false;
-    document.getElementById("connectionStatusText").textContent = "DEMO // SIMULATED";
+    document.getElementById("connectionStatusText").textContent = "API OFFLINE // CHAIN DEPLOYED";
   }
-
-  // Hydrate data state
-  state.agents = [...DEMO_AGENTS];
-  state.tasks = [...DEMO_TASKS];
-  state.bridgeMessages = [...DEMO_BRIDGE_MESSAGES];
-  state.settlements = [...DEMO_SETTLEMENTS];
-  state.bonds = [...DEMO_BONDS];
-  state.guardians = [...DEMO_GUARDIANS];
 
   renderAll();
 }
@@ -437,6 +432,10 @@ function renderBridge() {
   const tbody = document.getElementById("bridgeMessagesBody");
   if (!tbody) return;
 
+  if (state.bridgeMessages.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-table">No bridge messages recorded. Additional ecosystem deployments are still planned.</td></tr>`;
+    return;
+  }
   tbody.innerHTML = state.bridgeMessages.map(msg => {
     return `
       <tr>
@@ -459,7 +458,8 @@ function renderSettlements() {
   const bList = document.getElementById("bondsList");
   if (!sList || !bList) return;
 
-  sList.innerHTML = state.settlements.map(s => {
+  if (state.settlements.length === 0) sList.innerHTML = `<div class="empty-state">No settlements recorded yet.</div>`;
+  else sList.innerHTML = state.settlements.map(s => {
     return `
       <div class="settlement-item">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -479,7 +479,8 @@ function renderSettlements() {
     `;
   }).join("");
 
-  bList.innerHTML = state.bonds.map(b => {
+  if (state.bonds.length === 0) bList.innerHTML = `<div class="empty-state">No active agent bonds.</div>`;
+  else bList.innerHTML = state.bonds.map(b => {
     return `
       <div class="bond-item">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -506,6 +507,10 @@ function renderGuardians() {
   const tbody = document.getElementById("guardiansTableBody");
   if (!tbody) return;
 
+  if (state.guardians.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-table">Production guardian committee not configured.</td></tr>`;
+    return;
+  }
   tbody.innerHTML = state.guardians.map(g => {
     return `
       <tr>

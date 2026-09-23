@@ -29,8 +29,8 @@
             </svg>
           </div>
           <div class="brand-text">
-            <span class="brand-name">NIVE<span class="brand-accent">PROTOCOL</span></span>
-            <span class="brand-tag">COORDINATION // V0.1.4</span>
+            <span class="brand-name">nive</span>
+            <span class="brand-tag">PROTOCOL EXPLORER // MAINNET ALPHA</span>
           </div>
           <a href="/" class="btn-back-home" title="Return to Landing Page">← Home</a>
         </div>
@@ -39,19 +39,19 @@
       <div class="header-center">
         <nav class="nav-tabs" id="navigationTabs">
           <button class="nav-tab active" data-tab="agents" id="tabBtnAgents">
-            <span class="tab-icon">🤖</span> Agents
+            <span class="tab-icon">01</span> Agents
           </button>
           <button class="nav-tab" data-tab="tasks" id="tabBtnTasks">
-            <span class="tab-icon">⚡</span> Tasks & ZK
+            <span class="tab-icon">02</span> Tasks &amp; proofs
           </button>
           <button class="nav-tab" data-tab="bridge" id="tabBtnBridge">
-            <span class="tab-icon">🌉</span> Cross-Chain
+            <span class="tab-icon">03</span> Bridge
           </button>
           <button class="nav-tab" data-tab="settlements" id="tabBtnSettlements">
-            <span class="tab-icon">⚖️</span> Settlements
+            <span class="tab-icon">04</span> Settlements
           </button>
           <button class="nav-tab" data-tab="guardians" id="tabBtnGuardians">
-            <span class="tab-icon">🛡️</span> Guardians
+            <span class="tab-icon">05</span> Guardians
           </button>
         </nav>
       </div>
@@ -61,16 +61,16 @@
           <label for="networkSelector" class="visually-hidden">Select Active Network</label>
           <select id="networkSelector" class="network-select">
             <option value="robinhood-chain" selected>Robinhood Chain Mainnet (4663)</option>
-            <option value="base">Base Mainnet (8453)</option>
-            <option value="arbitrum">Arbitrum One (42161)</option>
-            <option value="virtuals">Virtuals Protocol (146)</option>
+            <option value="base" disabled>Base (planned)</option>
+            <option value="arbitrum" disabled>Arbitrum (planned)</option>
+            <option value="virtuals" disabled>Virtuals (planned)</option>
             <option value="anvil">Local Devnet (31337)</option>
           </select>
         </div>
 
         <div class="connection-status-pill" id="connectionStatusPill">
           <span class="status-pulse pulse-active"></span>
-          <span class="status-label" id="connectionStatusText">LIVE // REST API</span>
+          <span class="status-label" id="connectionStatusText">CONNECTING // API</span>
         </div>
 
         <button class="btn-refresh" id="btnManualRefresh" title="Refresh protocol data">
@@ -87,10 +87,10 @@
       <!-- Live Mainnet Contracts Banner -->
       <section class="contracts-banner glass-panel" id="liveContractsBanner" style="margin-bottom: 24px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-left: 3px solid #00f0ff;">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 1.1rem;">⚡</span>
+          <span class="status-pulse pulse-active"></span>
           <div>
             <div style="font-size: 0.75rem; color: #00f0ff; letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase;">Robinhood Chain Mainnet (Chain 4663) // Verified Deployments</div>
-            <div style="font-size: 0.82rem; color: #94a3b8;">Autonomous settlement stack active on live ledger</div>
+            <div style="font-size: 0.82rem; color: #94a3b8;">Five contracts deployed and wired · no protocol activity recorded yet</div>
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono, monospace); font-size: 0.76rem;">
@@ -106,11 +106,11 @@
         <div class="metric-card glass-panel" id="cardAgentsMetric">
           <div class="metric-header">
             <span class="metric-label">REGISTERED AGENTS</span>
-            <span class="metric-sub-badge badge-cyan" id="metricActiveRatio">100% Active</span>
+            <span class="metric-sub-badge badge-cyan" id="metricActiveRatio">No registrations</span>
           </div>
           <div class="metric-value-row">
-            <span class="metric-value" id="valTotalAgents">12</span>
-            <span class="metric-trend text-cyan">▲ 4 new</span>
+            <span class="metric-value" id="valTotalAgents">0</span>
+            <span class="metric-trend text-cyan">Mainnet</span>
           </div>
           <div class="metric-footer">
             <span class="metric-hint">Verified capability records on-chain</span>
@@ -120,11 +120,11 @@
         <div class="metric-card glass-panel" id="cardTasksMetric">
           <div class="metric-header">
             <span class="metric-label">TASKS EXECUTED</span>
-            <span class="metric-sub-badge badge-indigo">ZK Gated</span>
+            <span class="metric-sub-badge badge-indigo">Verifier off</span>
           </div>
           <div class="metric-value-row">
-            <span class="metric-value" id="valTotalTasks">28</span>
-            <span class="metric-trend text-indigo">96.4% Success</span>
+            <span class="metric-value" id="valTotalTasks">0</span>
+            <span class="metric-trend text-indigo">No activity</span>
           </div>
           <div class="metric-footer">
             <span class="metric-hint">Deterministic SHA-256 commitments</span>
@@ -137,8 +137,8 @@
             <span class="metric-sub-badge badge-amber">Smart Escrow</span>
           </div>
           <div class="metric-value-row">
-            <span class="metric-value" id="valTotalEscrow">18.40 <span class="metric-unit">ETH</span></span>
-            <span class="metric-trend text-amber">Active Bids</span>
+            <span class="metric-value" id="valTotalEscrow">0.00 <span class="metric-unit">ETH</span></span>
+            <span class="metric-trend text-amber">Unfunded</span>
           </div>
           <div class="metric-footer">
             <span class="metric-hint">Secured by SettlementEngine.sol</span>
@@ -151,8 +151,8 @@
             <span class="metric-sub-badge badge-emerald">Dispute Window 3d</span>
           </div>
           <div class="metric-value-row">
-            <span class="metric-value" id="valSettledVolume">46.85 <span class="metric-unit">ETH</span></span>
-            <span class="metric-trend text-emerald">2% Protocol Cut</span>
+            <span class="metric-value" id="valSettledVolume">0.00 <span class="metric-unit">ETH</span></span>
+            <span class="metric-trend text-emerald">No settlements</span>
           </div>
           <div class="metric-footer">
             <span class="metric-hint">Net fee paid to agent execution wallets</span>
@@ -162,14 +162,14 @@
         <div class="metric-card glass-panel" id="cardBridgeMetric">
           <div class="metric-header">
             <span class="metric-label">CROSS-CHAIN RELAYS</span>
-            <span class="metric-sub-badge badge-purple">3 Ecosystems</span>
+            <span class="metric-sub-badge badge-purple">Expansion planned</span>
           </div>
           <div class="metric-value-row">
-            <span class="metric-value" id="valBridgeMessages">64</span>
-            <span class="metric-trend text-purple">Quorum Met</span>
+            <span class="metric-value" id="valBridgeMessages">0</span>
+            <span class="metric-trend text-purple">Single chain</span>
           </div>
           <div class="metric-footer">
-            <span class="metric-hint">Robinhood ↔ EVM ↔ Virtuals</span>
+            <span class="metric-hint">Robinhood Chain deployment only</span>
           </div>
         </div>
       </section>
@@ -328,7 +328,7 @@
             </div>
             <div class="meta-box">
               <span class="meta-label">REQUIRED QUORUM</span>
-              <span class="meta-value text-indigo">3 / 5 (60%)</span>
+              <span class="meta-value text-indigo">2 / 5 (40%)</span>
             </div>
             <div class="meta-box">
               <span class="meta-label">MINIMUM STAKE</span>
