@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <defs>
+    <linearGradient id="niveGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFDD00"/>
+      <stop offset="35%" stop-color="#FFA500"/>
+      <stop offset="70%" stop-color="#FF5D00"/>
+      <stop offset="100%" stop-color="#FF3700"/>
+    </linearGradient>
+  </defs>
+  <!-- 4x4 Alternating Pixel Pattern -->
+  <!-- Col 1: x=108, Col 3: x=292 (Row 0: y=16) -->
+  <rect x="108" y="16" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  <rect x="292" y="16" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  
+  <!-- Col 0: x=16, Col 2: x=200 (Row 1: y=108) -->
+  <rect x="16" y="108" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  <rect x="200" y="108" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  
+  <!-- Col 1: x=108, Col 3: x=292 (Row 2: y=200) -->
+  <rect x="108" y="200" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  <rect x="292" y="200" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  
+  <!-- Col 0: x=16, Col 2: x=200 (Row 3: y=292) -->
+  <rect x="16" y="292" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+  <rect x="200" y="292" width="84" height="84" rx="4" fill="url(#niveGrad)"/>
+</svg>

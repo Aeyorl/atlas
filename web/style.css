@@ -130,19 +130,26 @@ body {
 .brand-badge {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.brand-logo-icon {
-  width: 44px;
-  height: 44px;
-  background: rgba(0, 242, 173, 0.08);
-  border: 1px solid var(--border-active);
-  border-radius: var(--radius-md);
-  display: flex;
+.brand-home-link {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 15px rgba(0, 242, 173, 0.15);
+  text-decoration: none;
+}
+
+.explorer-brand-logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.brand-home-link:hover .explorer-brand-logo {
+  opacity: 0.9;
+  transform: scale(1.02);
 }
 
 .brand-text {
