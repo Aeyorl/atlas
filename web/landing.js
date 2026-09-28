@@ -31,6 +31,29 @@ copyButton?.addEventListener('click', async () => {
   }
 });
 
+const tokenSection = document.getElementById('token');
+const tokenCaValue = document.getElementById('tokenCaValue');
+const copyTokenCa = document.getElementById('copyTokenCa');
+const tokenCaNote = document.getElementById('tokenCaNote');
+const tokenCa = tokenSection?.dataset.tokenCa?.trim() ?? '';
+
+if (tokenSection && tokenCaValue && copyTokenCa && tokenCaNote && tokenCa) {
+  tokenSection.classList.add('has-ca');
+  tokenCaValue.textContent = tokenCa;
+  copyTokenCa.disabled = false;
+  tokenCaNote.textContent = 'Official Nive token contract address. Always verify this value against the linked explorer before trading.';
+
+  copyTokenCa.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(tokenCa);
+      copyTokenCa.textContent = 'Copied';
+      window.setTimeout(() => { copyTokenCa.textContent = 'Copy'; }, 1600);
+    } catch {
+      copyTokenCa.textContent = 'Select CA';
+    }
+  });
+}
+
 // Ambient Animated Coordination Field with Warm Gold and Ember Radiance
 const canvas = document.getElementById('agentField');
 const context = canvas?.getContext('2d');
