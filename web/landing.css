@@ -430,6 +430,14 @@ h1 em {
   margin-bottom: 20px;
 }
 
+.hero-ca[hidden] {
+  display: none !important;
+}
+
+.hero-copy:has(.hero-ca:not([hidden])) .eyebrow {
+  display: none;
+}
+
 .hero-ca .hero-ca-label,
 .hero-ca > span {
   color: var(--gold-light);
