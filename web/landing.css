@@ -416,6 +416,63 @@ h1 em {
   flex: 1;
 }
 
+.hero-ca {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 185, 60, 0.22);
+  background: rgba(14, 11, 18, 0.75);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 210, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.hero-ca .hero-ca-label,
+.hero-ca > span {
+  color: var(--gold-light);
+  font: 10px / 1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+.hero-ca code {
+  min-width: 0;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f7edd8;
+  font: 11px / 1 var(--mono);
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.hero-ca button {
+  border: 1px solid rgba(255, 185, 60, 0.28);
+  background: rgba(255, 185, 60, 0.1);
+  color: var(--paper);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font: 10px / 1 var(--mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.hero-ca button:hover {
+  background: var(--gold);
+  color: #050508;
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(255, 210, 0, 0.4);
+}
+
 /* Proof Strip */
 .proof-strip {
   display: grid;
@@ -482,7 +539,6 @@ h1 em {
 .section-heading h2,
 .architecture h2,
 .developer h2,
-.token h2,
 .security h2,
 .final-cta h2 {
   font-weight: 400;
@@ -498,7 +554,6 @@ h1 em {
 
 .manifesto-copy p,
 .developer-copy > p,
-.token .section-heading > p,
 .security-grid > div > p {
   color: var(--muted);
   line-height: 1.75;
@@ -874,111 +929,6 @@ h1 em {
   color: #7d7265;
 }
 
-/* Token & Community CA */
-.token {
-  background:
-    linear-gradient(180deg, rgba(255, 185, 60, 0.025), transparent 42%),
-    #060509;
-}
-
-.token-panel {
-  display: grid;
-  grid-template-columns: 1fr 1.25fr 1fr;
-  border: 1px solid var(--line);
-  background: rgba(10, 8, 14, 0.58);
-}
-
-.token-card {
-  min-height: 290px;
-  padding: 30px;
-  border-right: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.token-card:last-child {
-  border-right: 0;
-}
-
-.token-card-primary {
-  background:
-    radial-gradient(circle at 25% 20%, rgba(255, 210, 0, 0.16), transparent 44%),
-    linear-gradient(145deg, rgba(255, 110, 0, 0.08), rgba(255, 185, 60, 0.02));
-}
-
-.token-state {
-  color: var(--gold-light);
-  font: 10px var(--mono);
-  letter-spacing: 0.12em;
-}
-
-.token-card h3 {
-  color: #fff;
-  font-size: 28px;
-  font-weight: 400;
-  letter-spacing: -0.035em;
-  margin: auto 0 14px;
-}
-
-.token-card p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.65;
-  margin: 0;
-}
-
-.token-ca-card {
-  gap: 30px;
-}
-
-.token-ca-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  margin: auto 0 18px;
-}
-
-.token-ca-row code {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.035);
-  color: #fff4c7;
-  padding: 18px;
-  font: 14px / 1.45 var(--mono);
-}
-
-.token-ca-row button {
-  height: 54px;
-  border: 1px solid var(--line);
-  background: rgba(255, 185, 60, 0.08);
-  color: var(--paper);
-  border-radius: 4px;
-  padding: 0 18px;
-  font: 12px var(--mono);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.token-ca-row button:not(:disabled):hover {
-  background: var(--gold);
-  color: #050508;
-}
-
-.token-ca-row button:disabled {
-  cursor: not-allowed;
-  color: var(--dim);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.token.has-ca .token-card-primary {
-  background:
-    radial-gradient(circle at 25% 20%, rgba(255, 210, 0, 0.2), transparent 46%),
-    linear-gradient(145deg, rgba(255, 110, 0, 0.12), rgba(255, 185, 60, 0.04));
-}
-
 /* Security Posture */
 .security-grid {
   display: grid;
@@ -1212,17 +1162,9 @@ h1 em {
   .manifesto-grid,
   .architecture-panel,
   .developer,
-  .token-panel,
   .security-grid {
     grid-template-columns: 1fr;
     gap: 60px;
-  }
-  .token-card {
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .token-card:last-child {
-    border-bottom: 0;
   }
   .flow-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1287,7 +1229,6 @@ h1 em {
   .section-heading h2,
   .architecture-copy h2,
   .developer-copy h2,
-  .token h2,
   .security h2 {
     font-size: 42px;
   }
@@ -1320,15 +1261,27 @@ h1 em {
     padding: 20px;
     font-size: 11px;
   }
-  .token-card {
-    min-height: 260px;
-    padding: 24px;
-  }
-  .token-ca-row {
-    grid-template-columns: 1fr;
-  }
-  .token-ca-row button {
+  .hero-ca {
+    display: flex;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 6px 8px 6px 12px;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .hero-ca .hero-ca-label,
+  .hero-ca > span {
+    font-size: 9px;
+  }
+  .hero-ca code {
+    max-width: none;
+    flex: 1;
+    font-size: 10px;
+  }
+  .hero-ca button {
+    padding: 4px 10px;
+    font-size: 10px;
   }
   .final-cta {
     min-height: 620px;
