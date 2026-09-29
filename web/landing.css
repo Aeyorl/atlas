@@ -758,21 +758,34 @@ h1 em {
   background: rgba(255, 185, 60, 0.05);
 }
 
-.chain-logo-mark {
-  width: 154px;
-  min-width: 154px;
-  min-height: 56px;
-  display: grid;
-  place-items: center;
-  padding: 14px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  background: #000;
+.chain-mark-logo {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  padding: 0;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 210, 91, 0.18);
 }
 
-.chain-logo-mark img {
+.chain-mark-logo img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chain-mark-robinhood {
+  background: #b8ff00;
+}
+
+.chain-mark-base img,
+.chain-mark-virtuals img {
+  object-fit: contain;
+}
+
+.chain-mark-virtuals {
+  background: #020202;
 }
 
 .chain-row h3 {
@@ -1260,13 +1273,6 @@ h1 em {
   }
   .chain-row > div {
     gap: 14px;
-  }
-  .chain-logo-mark {
-    width: 118px;
-    min-width: 118px;
-    min-height: 46px;
-    height: auto;
-    padding: 11px 12px;
   }
   .chain-row > a,
   .chain-row > span {

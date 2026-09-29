@@ -31,30 +31,6 @@ copyButton?.addEventListener('click', async () => {
   }
 });
 
-const officialCa = document.querySelector('.official-ca');
-const tokenCaValue = document.getElementById('tokenCaValue');
-const copyTokenCa = document.getElementById('copyTokenCa');
-
-copyTokenCa?.addEventListener('click', async () => {
-  const currentCa = (officialCa?.dataset.tokenCa || tokenCaValue?.textContent || '').trim();
-  if (!currentCa) return;
-  try {
-    await navigator.clipboard.writeText(currentCa);
-    copyTokenCa.textContent = 'Copied';
-    window.setTimeout(() => { copyTokenCa.textContent = 'Copy'; }, 1600);
-  } catch {
-    if (tokenCaValue) {
-      const range = document.createRange();
-      range.selectNodeContents(tokenCaValue);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-    copyTokenCa.textContent = 'Select CA';
-    window.setTimeout(() => { copyTokenCa.textContent = 'Copy'; }, 1600);
-  }
-});
-
 // Ambient Animated Coordination Field with Warm Gold and Ember Radiance
 const canvas = document.getElementById('agentField');
 const context = canvas?.getContext('2d');
