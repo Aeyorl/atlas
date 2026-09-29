@@ -31,18 +31,13 @@ copyButton?.addEventListener('click', async () => {
   }
 });
 
-const heroCa = document.querySelector('.hero-ca');
-const eyebrow = document.querySelector('.hero-copy .eyebrow');
+const officialCa = document.querySelector('.official-ca');
 const tokenCaValue = document.getElementById('tokenCaValue');
 const copyTokenCa = document.getElementById('copyTokenCa');
 
-if (heroCa && !heroCa.hasAttribute('hidden')) {
-  if (eyebrow) eyebrow.style.display = 'none';
-}
-
 copyTokenCa?.addEventListener('click', async () => {
-  const currentCa = (heroCa?.dataset.tokenCa || tokenCaValue?.textContent || '').trim();
-  if (!currentCa || currentCa.startsWith('PASTE_')) return;
+  const currentCa = (officialCa?.dataset.tokenCa || tokenCaValue?.textContent || '').trim();
+  if (!currentCa) return;
   try {
     await navigator.clipboard.writeText(currentCa);
     copyTokenCa.textContent = 'Copied';
