@@ -1265,3 +1265,173 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+/* Explorer refinement: align the live dashboard with Nive's warm, quiet landing page. */
+body {
+  background:
+    radial-gradient(65% 38% at 50% 110%, rgba(255, 120, 0, .16), transparent 72%),
+    #050508;
+}
+
+.app-shell {
+  width: min(1760px, calc(100% - clamp(36px, 9vw, 272px)));
+  max-width: 1760px;
+  padding: 14px 0 70px;
+}
+
+.app-header {
+  gap: 13px 22px;
+  margin-bottom: 30px;
+  padding: 14px 18px;
+  border-color: rgba(255, 255, 255, .1);
+  background: rgba(6, 5, 11, .86);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .18);
+}
+
+.brand-badge { gap: 14px; }
+.explorer-brand-logo { height: 32px; }
+.brand-tag { color: #777181; font-size: .58rem; }
+.btn-back-home { margin-left: 2px; padding: 6px 10px; color: #b4aebd; }
+.btn-back-home:hover { color: #fff; }
+.header-right { gap: 9px; }
+.network-select { max-width: 100%; min-height: 42px; padding-inline: 13px 34px; border-radius: 10px; color: #eee9f1; }
+.connection-status-pill { min-height: 38px; padding-inline: 13px; border-radius: 999px; color: #f0c53c; }
+.btn-refresh { width: 42px; height: 42px; border-radius: 10px; color: #aaa2b2; }
+.btn-refresh:hover { color: var(--accent-cyan); }
+.nav-tabs { padding: 4px; gap: 2px; background: rgba(255, 255, 255, .025); }
+.nav-tab { min-height: 38px; padding: 8px 12px; color: #aaa4b4; font-size: .74rem; white-space: nowrap; }
+.nav-tab:hover { color: #fff; }
+.nav-tab.active { color: #18131a; background: #f5f1f4; }
+.nav-tab:focus-visible, .chip:focus-visible, .btn-refresh:focus-visible, .contract-badge:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 3px; }
+.tab-icon { color: #8c8495; }
+.nav-tab.active .tab-icon { color: #514757; }
+
+.contracts-banner {
+  display: grid !important;
+  grid-template-columns: minmax(280px, .78fr) minmax(0, 1.22fr);
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding: 18px 22px !important;
+  border: 1px solid rgba(255, 185, 60, .16) !important;
+  border-radius: 19px !important;
+  background: linear-gradient(108deg, rgba(255, 140, 0, .14), rgba(30, 18, 15, .58) 49%, rgba(9, 7, 13, .92)) !important;
+}
+
+.contracts-summary { display: flex; min-width: 0; align-items: center; gap: 13px; }
+.contracts-summary > div { min-width: 0; }
+.contracts-title { color: #f3c638; font-size: .73rem; font-weight: 700; letter-spacing: .065em; line-height: 1.55; text-transform: uppercase; }
+.contracts-title span { color: #d5b452; }
+.contracts-description { margin-top: 3px; color: #aaa2a0; font-size: .79rem; line-height: 1.5; }
+.contracts-links { display: flex; min-width: 0; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
+.contract-badge {
+  display: inline-flex;
+  min-height: 33px;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px !important;
+  border: 1px solid rgba(255, 255, 255, .1) !important;
+  border-radius: 999px !important;
+  color: #e6cb79 !important;
+  background: rgba(255, 255, 255, .035) !important;
+  font: 500 .66rem/1.2 var(--font-mono);
+  text-decoration: none !important;
+  white-space: nowrap;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+.contract-badge span { color: #f0d77c; }
+.contract-badge i { color: #9c8244; font-size: .6rem; }
+.contract-badge:hover { border-color: rgba(255, 200, 70, .38) !important; color: #fff1b9 !important; background: rgba(255, 173, 30, .09) !important; }
+
+.metrics-grid { border-color: rgba(255, 255, 255, .1); border-radius: 19px; }
+.metric-card { min-width: 0; min-height: 188px; padding: 22px 20px; background: rgba(13, 11, 16, .96); }
+.metric-label { color: #898392; font-size: .59rem; letter-spacing: .1em; }
+.metric-sub-badge { max-width: 100%; padding: 4px 9px; border: 1px solid rgba(255, 185, 60, .09); border-radius: 999px; white-space: nowrap; }
+.metric-value-row { gap: 8px; min-height: 62px; }
+.metric-value { color: #f7f3f6; font: 400 clamp(1.9rem, 2.7vw, 2.35rem)/1.1 var(--font-mono); }
+.metric-unit { margin-left: 4px; font-size: .7rem; }
+.metric-trend { font-size: .61rem; white-space: nowrap; }
+.metric-footer { margin-top: 7px; }
+.metric-hint { display: block; color: #797381; font-size: .66rem; line-height: 1.5; }
+.badge-cyan { color: #dfc953; background: rgba(255, 210, 0, .1); }
+.badge-indigo { color: #e89940; background: rgba(255, 140, 0, .11); }
+.badge-emerald { color: #e2b632; background: rgba(245, 173, 18, .1); }
+
+.pane-toolbar { align-items: center; gap: 16px; margin: 32px 0 18px; }
+.search-bar-wrapper { flex: 0 1 470px; }
+.search-input { min-height: 42px; border-color: rgba(255, 255, 255, .1); color: #f3eef4; }
+.search-input::placeholder { color: #817b89; opacity: 1; }
+.search-input::-webkit-search-cancel-button { cursor: pointer; }
+.search-icon { left: 16px; color: #d8b84a; font-size: .86rem; }
+.filter-chips-wrapper { align-items: center; justify-content: flex-end; gap: 7px; }
+.chip { min-height: 34px; padding: 7px 13px; border-color: rgba(255, 255, 255, .09); color: #aaa4b1; font-size: .68rem; white-space: nowrap; }
+.chip:hover { border-color: rgba(255, 194, 63, .28); color: #f7eac4; background: rgba(255, 255, 255, .045); }
+.chip.active { border-color: rgba(255, 185, 60, .38); color: #fff0c1; background: rgba(255, 150, 20, .17); }
+
+.agents-empty {
+  display: flex;
+  min-height: 190px;
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 27px 22px !important;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 16px;
+  text-align: center;
+  background: linear-gradient(120deg, rgba(21, 16, 18, .88), rgba(13, 11, 16, .92));
+}
+.empty-mark { width: 33px; height: 33px; margin-bottom: 13px; border: 1px solid rgba(255, 195, 56, .2); border-radius: 50%; background: rgba(255, 255, 255, .95); object-fit: contain; }
+.empty-eyebrow { color: #a9955a; font: 500 .58rem/1.4 var(--font-mono); letter-spacing: .15em; }
+.agents-empty h2 { margin: 7px 0 5px; color: #f1edf1; font-size: 1.05rem; font-weight: 500; letter-spacing: -.025em; }
+.agents-empty p { max-width: 430px; color: #898290; font-size: .78rem; line-height: 1.6; }
+.empty-reset { margin-top: 14px; padding: 8px 13px; border: 1px solid rgba(255, 185, 60, .25); border-radius: 999px; color: #f1d676; background: rgba(255, 178, 30, .08); font: 500 .68rem var(--font-sans); cursor: pointer; }
+.empty-reset:hover { background: rgba(255, 178, 30, .15); }
+
+@media (max-width: 1180px) {
+  .contracts-banner { grid-template-columns: 1fr; gap: 14px; }
+  .contracts-links { justify-content: flex-start; }
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 768px) {
+  .app-shell { width: calc(100% - 28px); padding-top: 8px; }
+  .app-header { padding: 13px; }
+  .header-left { min-width: 0; }
+  .brand-badge { gap: 10px; flex-wrap: wrap; }
+  .brand-tag { max-width: 36vw; font-size: .51rem; line-height: 1.45; }
+  .explorer-brand-logo { height: 27px; }
+  .btn-back-home { margin: 0; padding: 5px 7px; font-size: .65rem; }
+  .header-center { order: 2; margin: 0 -3px; }
+  .header-right { order: 3; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; }
+  .network-select { width: 100%; min-width: 0; font-size: .72rem; }
+  .connection-status-pill { justify-content: center; min-width: 0; padding-inline: 9px; font-size: .5rem; }
+  .btn-refresh { width: 40px; height: 40px; }
+  .main-content { padding-top: 2px; }
+  .contracts-banner { padding: 16px !important; }
+  .contracts-links { justify-content: flex-start; }
+  .contract-badge { white-space: normal; }
+  .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric-card { min-height: 152px; padding: 16px 14px; }
+  .metric-header { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .metric-value-row { align-items: flex-end; min-height: 54px; }
+  .metric-value { font-size: clamp(1.65rem, 8vw, 2.1rem); }
+  .metric-trend { font-size: .55rem; }
+  .metric-hint { font-size: .61rem; }
+  .pane-toolbar { margin: 24px 0 16px; }
+  .search-bar-wrapper { flex: auto; }
+  .filter-chips-wrapper { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding: 1px 1px 7px; scrollbar-width: thin; }
+  .chip { flex: 0 0 auto; }
+  .agents-empty { min-height: 205px; }
+}
+
+@media (max-width: 420px) {
+  .brand-tag { max-width: 31vw; }
+  .network-select { padding-inline: 9px 27px; font-size: .65rem; }
+  .connection-status-pill { padding-inline: 7px; font-size: .45rem; letter-spacing: .04em; }
+  .contracts-title { font-size: .65rem; }
+  .contracts-description { font-size: .71rem; }
+  .contract-badge { gap: 5px; padding-inline: 8px !important; font-size: .58rem; }
+  .metric-card { min-height: 148px; padding: 14px 12px; }
+  .metric-label { font-size: .52rem; }
+}

@@ -324,7 +324,28 @@ function renderAgents() {
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="empty-state glass-panel" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-dim);">No AI agents match current filters.</div>`;
+    const hasAgents = state.agents.length > 0;
+    const title = hasAgents
+      ? "No agents match these filters"
+      : state.isLive
+        ? "No agent records to display"
+        : "Agent data is temporarily unavailable";
+    const description = hasAgents
+      ? "Try another capability or clear your search to see more of the registry."
+      : state.isLive
+        ? "The directory has not returned any agent records for this network yet."
+        : "The explorer API is offline. Agent records will appear here when the index is reachable.";
+    const clearFilters = hasAgents
+      ? '<button class="empty-reset" id="clearAgentFilters" type="button">Clear search and filters</button>'
+      : "";
+
+    container.innerHTML = `<div class="agents-empty glass-panel" role="status" aria-live="polite">
+      <img class="empty-mark" src="/nive-icon.png" alt="" width="38" height="38">
+      <span class="empty-eyebrow">AGENT REGISTRY</span>
+      <h2>${title}</h2>
+      <p>${description}</p>
+      ${clearFilters}
+    </div>`;
     return;
   }
 
@@ -635,7 +656,13 @@ document.addEventListener("DOMContentLoaded", () => {
   tabBtns.forEach(btn => {
     btn.addEventListener("click", () => {
       tabBtns.forEach(b => b.classList.remove("active"));
+      tabBtns.forEach(b => {
+        b.setAttribute("aria-selected", "false");
+        b.setAttribute("tabindex", "-1");
+      });
       btn.classList.add("active");
+      btn.setAttribute("aria-selected", "true");
+      btn.setAttribute("tabindex", "0");
       const targetTab = btn.getAttribute("data-tab");
       state.activeTab = targetTab;
 
@@ -645,6 +672,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const targetPane = document.getElementById(`tabPane${targetTab.charAt(0).toUpperCase() + targetTab.slice(1)}`);
       if (targetPane) targetPane.classList.add("active");
     });
+
+    btn.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const currentIndex = [...tabBtns].indexOf(btn);
+      const nextIndex = event.key === "Home" ? 0
+        : event.key === "End" ? tabBtns.length - 1
+          : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + tabBtns.length) % tabBtns.length;
+      tabBtns[nextIndex].focus();
+      tabBtns[nextIndex].click();
+    });
   });
 
   // Capability Filter Chips
@@ -652,7 +690,9 @@ document.addEventListener("DOMContentLoaded", () => {
   filterChips.forEach(chip => {
     chip.addEventListener("click", () => {
       filterChips.forEach(c => c.classList.remove("active"));
+      filterChips.forEach(c => c.setAttribute("aria-pressed", "false"));
       chip.classList.add("active");
+      chip.setAttribute("aria-pressed", "true");
       state.agentFilter = chip.getAttribute("data-filter");
       renderAgents();
     });
@@ -678,6 +718,20 @@ document.addEventListener("DOMContentLoaded", () => {
       renderAgents();
     });
   }
+
+  document.getElementById("agentsGrid")?.addEventListener("click", event => {
+    if (!event.target.closest("#clearAgentFilters")) return;
+    state.agentFilter = "ALL";
+    state.searchQuery = "";
+    filterChips.forEach(chip => {
+      const selected = chip.getAttribute("data-filter") === "ALL";
+      chip.classList.toggle("active", selected);
+      chip.setAttribute("aria-pressed", String(selected));
+    });
+    if (searchInput) searchInput.value = "";
+    renderAgents();
+    searchInput?.focus();
+  });
 
   // Network Selector
   const networkSelect = document.getElementById("networkSelector");

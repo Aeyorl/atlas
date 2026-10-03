@@ -13,7 +13,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="/style.css?v=explorer-20261003">
 </head>
 <body>
   <div id="app" class="app-shell">
@@ -37,20 +38,20 @@
       </div>
 
       <div class="header-center">
-        <nav class="nav-tabs" id="navigationTabs">
-          <button class="nav-tab active" data-tab="agents" id="tabBtnAgents">
+        <nav class="nav-tabs" id="navigationTabs" role="tablist" aria-label="Explorer sections">
+          <button class="nav-tab active" type="button" role="tab" aria-selected="true" aria-controls="tabPaneAgents" tabindex="0" data-tab="agents" id="tabBtnAgents">
             <span class="tab-icon">01</span> Agents
           </button>
-          <button class="nav-tab" data-tab="tasks" id="tabBtnTasks">
+          <button class="nav-tab" type="button" role="tab" aria-selected="false" aria-controls="tabPaneTasks" tabindex="-1" data-tab="tasks" id="tabBtnTasks">
             <span class="tab-icon">02</span> Tasks &amp; proofs
           </button>
-          <button class="nav-tab" data-tab="bridge" id="tabBtnBridge">
+          <button class="nav-tab" type="button" role="tab" aria-selected="false" aria-controls="tabPaneBridge" tabindex="-1" data-tab="bridge" id="tabBtnBridge">
             <span class="tab-icon">03</span> Bridge
           </button>
-          <button class="nav-tab" data-tab="settlements" id="tabBtnSettlements">
+          <button class="nav-tab" type="button" role="tab" aria-selected="false" aria-controls="tabPaneSettlements" tabindex="-1" data-tab="settlements" id="tabBtnSettlements">
             <span class="tab-icon">04</span> Settlements
           </button>
-          <button class="nav-tab" data-tab="guardians" id="tabBtnGuardians">
+          <button class="nav-tab" type="button" role="tab" aria-selected="false" aria-controls="tabPaneGuardians" tabindex="-1" data-tab="guardians" id="tabBtnGuardians">
             <span class="tab-icon">05</span> Guardians
           </button>
         </nav>
@@ -69,15 +70,12 @@
         </div>
 
         <div class="connection-status-pill" id="connectionStatusPill">
-          <span class="status-pulse pulse-active"></span>
+          <span class="status-pulse pulse-active" aria-hidden="true"></span>
           <span class="status-label" id="connectionStatusText">CONNECTING // API</span>
         </div>
 
-        <button class="btn-refresh" id="btnManualRefresh" title="Refresh protocol data">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 4v6h-6M1 20v-6h6"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
+        <button class="btn-refresh" id="btnManualRefresh" type="button" aria-label="Refresh protocol data" title="Refresh protocol data">
+          <i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>
         </button>
       </div>
     </header>
@@ -85,19 +83,19 @@
     <!-- Main Protocol Container -->
     <main class="main-content" id="mainContainer">
       <!-- Live Mainnet Contracts Banner -->
-      <section class="contracts-banner glass-panel" id="liveContractsBanner" style="margin-bottom: 24px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-left: 3px solid #ffd200; background: linear-gradient(120deg, rgba(255,140,0,0.14), rgba(12,10,16,0.92));">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span class="status-pulse pulse-active"></span>
+      <section class="contracts-banner glass-panel" id="liveContractsBanner" aria-labelledby="contractsTitle" aria-describedby="contractsDescription">
+        <div class="contracts-summary">
+          <span class="status-pulse pulse-active" aria-hidden="true"></span>
           <div>
-            <div style="font-size: 0.75rem; color: #ffd200; letter-spacing: 0.08em; font-weight: 700; text-transform: uppercase;">Robinhood Chain Mainnet (Chain 4663) // Verified Deployments</div>
-            <div style="font-size: 0.82rem; color: #a39c94;">Five contracts deployed and wired · live on ledger</div>
+            <div class="contracts-title" id="contractsTitle">Robinhood Chain Mainnet (Chain 4663) <span>// Verified deployments</span></div>
+            <div class="contracts-description" id="contractsDescription">Five contracts deployed and wired · live on ledger</div>
           </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono, monospace); font-size: 0.76rem;">
-          <a href="https://explorer.chain.robinhood.com/address/0x4bee3427e9c85ec82a4925ccec3984c927d8385d" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(255,210,0,0.08); border: 1px solid rgba(255,210,0,0.3); color: #ffd200; padding: 4px 8px; border-radius: 4px; text-decoration: none;">Registry: 0x4bee...85d ↗</a>
-          <a href="https://explorer.chain.robinhood.com/address/0xf9d81e2e6d54f3c199cf5edd7a5788f2c5b7be16" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(255,153,0,0.08); border: 1px solid rgba(255,153,0,0.3); color: #ffaa33; padding: 4px 8px; border-radius: 4px; text-decoration: none;">Settlement: 0xf9d8...e16 ↗</a>
-          <a href="https://explorer.chain.robinhood.com/address/0xbc98de8ad6d9f2c29aa3208f527bcf6e3fb81245" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(255,85,0,0.08); border: 1px solid rgba(255,85,0,0.3); color: #ff7733; padding: 4px 8px; border-radius: 4px; text-decoration: none;">TaskManager: 0xbc98...245 ↗</a>
-          <a href="https://explorer.chain.robinhood.com/address/0x94efa28ea5d85a9cffb6e1d772cb7359994c7206" target="_blank" rel="noopener noreferrer" class="contract-badge" style="background: rgba(255,51,0,0.08); border: 1px solid rgba(255,51,0,0.3); color: #ff5533; padding: 4px 8px; border-radius: 4px; text-decoration: none;">Bridge: 0x94ef...206 ↗</a>
+        <div class="contracts-links" aria-label="Verified contract addresses">
+          <a href="https://explorer.chain.robinhood.com/address/0x4bee3427e9c85ec82a4925ccec3984c927d8385d" target="_blank" rel="noopener noreferrer" class="contract-badge">Registry <span>0x4bee...85d</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+          <a href="https://explorer.chain.robinhood.com/address/0xf9d81e2e6d54f3c199cf5edd7a5788f2c5b7be16" target="_blank" rel="noopener noreferrer" class="contract-badge">Settlement <span>0xf9d8...e16</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+          <a href="https://explorer.chain.robinhood.com/address/0xbc98de8ad6d9f2c29aa3208f527bcf6e3fb81245" target="_blank" rel="noopener noreferrer" class="contract-badge">TaskManager <span>0xbc98...245</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
+          <a href="https://explorer.chain.robinhood.com/address/0x94efa28ea5d85a9cffb6e1d772cb7359994c7206" target="_blank" rel="noopener noreferrer" class="contract-badge">Bridge <span>0x94ef...206</span><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
         </div>
       </section>
 
@@ -175,19 +173,19 @@
       </section>
 
       <!-- TAB 1: AI AGENTS DIRECTORY -->
-      <section class="tab-pane active" id="tabPaneAgents" role="tabpanel" aria-labelledby="tabBtnAgents">
+      <section class="tab-pane active" id="tabPaneAgents" role="tabpanel" aria-labelledby="tabBtnAgents" tabindex="0">
         <div class="pane-toolbar">
           <div class="search-bar-wrapper">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="agentSearchInput" class="search-input" placeholder="Search by Agent ID, seed name, or execution wallet...">
+            <i class="search-icon fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <input type="search" id="agentSearchInput" class="search-input" aria-label="Search agents by ID, seed name, or execution wallet" placeholder="Search by agent ID, seed, or execution wallet…">
           </div>
-          <div class="filter-chips-wrapper" id="agentFilterChips">
-            <button class="chip active" data-filter="ALL">All Capabilities</button>
-            <button class="chip" data-filter="INFERENCE">Inference</button>
-            <button class="chip" data-filter="TRADE">Trade</button>
-            <button class="chip" data-filter="ARBITRAGE">Arbitrage</button>
-            <button class="chip" data-filter="DATA_AGG">Data Aggregation</button>
-            <button class="chip" data-filter="SENTIMENT">Sentiment</button>
+          <div class="filter-chips-wrapper" id="agentFilterChips" role="group" aria-label="Filter agents by capability">
+            <button class="chip active" type="button" aria-pressed="true" data-filter="ALL">All capabilities</button>
+            <button class="chip" type="button" aria-pressed="false" data-filter="INFERENCE">Inference</button>
+            <button class="chip" type="button" aria-pressed="false" data-filter="TRADE">Trade</button>
+            <button class="chip" type="button" aria-pressed="false" data-filter="ARBITRAGE">Arbitrage</button>
+            <button class="chip" type="button" aria-pressed="false" data-filter="DATA_AGG">Data aggregation</button>
+            <button class="chip" type="button" aria-pressed="false" data-filter="SENTIMENT">Sentiment</button>
           </div>
         </div>
 
@@ -197,7 +195,7 @@
       </section>
 
       <!-- TAB 2: TASKS & ZK VERIFICATION -->
-      <section class="tab-pane" id="tabPaneTasks" role="tabpanel" aria-labelledby="tabBtnTasks">
+      <section class="tab-pane" id="tabPaneTasks" role="tabpanel" aria-labelledby="tabBtnTasks" tabindex="0">
         <div class="pane-toolbar">
           <div class="filter-chips-wrapper" id="taskStatusFilters">
             <button class="chip active" data-task-filter="ALL">All Tasks (<span id="countAllTasks">0</span>)</button>
@@ -233,7 +231,7 @@
       </section>
 
       <!-- TAB 3: CROSS-CHAIN BRIDGE -->
-      <section class="tab-pane" id="tabPaneBridge" role="tabpanel" aria-labelledby="tabBtnBridge">
+      <section class="tab-pane" id="tabPaneBridge" role="tabpanel" aria-labelledby="tabBtnBridge" tabindex="0">
         <!-- Multi-Ecosystem Topology Banner -->
         <div class="topology-banner glass-panel">
           <div class="topology-title">
@@ -292,7 +290,7 @@
       </section>
 
       <!-- TAB 4: SETTLEMENTS & BONDS -->
-      <section class="tab-pane" id="tabPaneSettlements" role="tabpanel" aria-labelledby="tabBtnSettlements">
+      <section class="tab-pane" id="tabPaneSettlements" role="tabpanel" aria-labelledby="tabBtnSettlements" tabindex="0">
         <div class="settlement-layout-grid">
           <!-- Recent Settlements Column -->
           <div class="settlement-column glass-panel">
@@ -319,7 +317,7 @@
       </section>
 
       <!-- TAB 5: GUARDIANS -->
-      <section class="tab-pane" id="tabPaneGuardians" role="tabpanel" aria-labelledby="tabBtnGuardians">
+      <section class="tab-pane" id="tabPaneGuardians" role="tabpanel" aria-labelledby="tabBtnGuardians" tabindex="0">
         <div class="guardians-overview glass-panel">
           <div class="guardians-meta-grid">
             <div class="meta-box">
@@ -381,6 +379,6 @@
     <div class="toast-container" id="toastContainer"></div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=explorer-20261003"></script>
 </body>
 </html>

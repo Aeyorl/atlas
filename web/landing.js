@@ -1,124 +1,110 @@
 const menuButton = document.querySelector('.menu-toggle');
-const menu = document.querySelector('.nav-capsule');
+const mobileMenu = document.querySelector('#mobileMenu');
+const menuBackdrop = document.querySelector('[data-menu-backdrop]');
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+document.documentElement.classList.add('js-ready');
+
+const setMenuOpen = open => {
+  if (!menuButton || !mobileMenu || !menuBackdrop) return;
+
+  menuButton.setAttribute('aria-expanded', String(open));
+  menuButton.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
+  const icon = menuButton.querySelector('i');
+  icon?.classList.toggle('fa-bars', !open);
+  icon?.classList.toggle('fa-xmark', open);
+  mobileMenu.hidden = !open;
+  menuBackdrop.hidden = !open;
+  document.body.classList.toggle('menu-open', open);
+};
 
 menuButton?.addEventListener('click', () => {
-  const open = menuButton.getAttribute('aria-expanded') === 'true';
-  menuButton.setAttribute('aria-expanded', String(!open));
-  menu?.classList.toggle('is-open', !open);
+  setMenuOpen(menuButton.getAttribute('aria-expanded') !== 'true');
+});
+menuBackdrop?.addEventListener('click', () => setMenuOpen(false));
+mobileMenu?.querySelectorAll('a').forEach(link => {
+  link.addEventListener('click', () => setMenuOpen(false));
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') setMenuOpen(false);
+});
+window.matchMedia('(min-width: 961px)').addEventListener('change', event => {
+  if (event.matches) setMenuOpen(false);
 });
 
-menu?.querySelectorAll('a').forEach(link => {
-  link.addEventListener('click', () => {
-    menu.classList.remove('is-open');
-    menuButton?.setAttribute('aria-expanded', 'false');
-  });
-});
+const counters = [...document.querySelectorAll('[data-count]')];
+const runCounter = (element, index) => {
+  if (element.dataset.counted) return;
+  element.dataset.counted = 'true';
 
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-document.querySelectorAll('.reveal').forEach((element, index) => {
-  window.setTimeout(() => element.classList.add('is-visible'), reducedMotion ? 0 : 120 + index * 140);
-});
-
-const copyButton = document.getElementById('copyCode');
-copyButton?.addEventListener('click', async () => {
-  const code = document.getElementById('quickstartCode')?.textContent ?? '';
-  try {
-    await navigator.clipboard.writeText(code);
-    copyButton.textContent = 'Copied';
-    window.setTimeout(() => { copyButton.textContent = 'Copy'; }, 1600);
-  } catch {
-    copyButton.textContent = 'Select code';
-  }
-});
-
-// Ambient Animated Coordination Field with Warm Gold and Ember Radiance
-const canvas = document.getElementById('agentField');
-const context = canvas?.getContext('2d');
-
-if (canvas && context) {
-  const points = [];
-  const rings = [96, 170, 245];
-
-  for (let ring = 0; ring < rings.length; ring += 1) {
-    const count = 38 + ring * 22;
-    for (let index = 0; index < count; index += 1) {
-      points.push({
-        angle: (Math.PI * 2 * index) / count + ring * 0.32,
-        radius: rings[ring] + Math.sin(index * 2.1) * 12,
-        size: ring === 0 ? 2.2 : 1.6,
-        speed: (ring % 2 ? -1 : 1) * (0.00008 + ring * 0.000025),
-        alpha: 0.35 + ((index * 17) % 50) / 100,
-        isGold: index % 2 === 0,
-      });
-    }
+  const target = Number(element.dataset.count);
+  if (reducedMotion || !Number.isFinite(target)) {
+    element.textContent = String(target);
+    return;
   }
 
-  const draw = (time = 0) => {
-    const scale = window.devicePixelRatio || 1;
-    const size = canvas.clientWidth || 720;
-
-    if (canvas.width !== Math.round(size * scale)) {
-      canvas.width = Math.round(size * scale);
-      canvas.height = Math.round(size * scale);
+  const duration = 1500 + index * 80;
+  const delay = 480 + index * 90;
+  const startedAt = performance.now() + delay;
+  const step = now => {
+    if (now < startedAt) {
+      requestAnimationFrame(step);
+      return;
     }
-
-    context.setTransform(scale, 0, 0, scale, 0, 0);
-    context.clearRect(0, 0, size, size);
-
-    const factor = size / 720;
-    const center = size / 2;
-
-    // Ambient Radial Core Flare (Gold to Ember Orange)
-    const glow = context.createRadialGradient(center, center, 0, center, center, size * 0.44);
-    glow.addColorStop(0, 'rgba(255, 210, 0, 0.28)');
-    glow.addColorStop(0.35, 'rgba(255, 140, 0, 0.12)');
-    glow.addColorStop(0.7, 'rgba(255, 55, 0, 0.04)');
-    glow.addColorStop(1, 'rgba(5, 5, 8, 0)');
-    context.fillStyle = glow;
-    context.fillRect(0, 0, size, size);
-
-    // Orbiting Agent Nodes
-    points.forEach((point, index) => {
-      const phase = reducedMotion ? 0 : time * point.speed;
-      const x = center + Math.cos(point.angle + phase) * point.radius * factor;
-      const y = center + Math.sin(point.angle + phase) * point.radius * factor * 0.78;
-
-      context.beginPath();
-      context.fillStyle = point.isGold
-        ? `rgba(255, 215, 60, ${point.alpha})`
-        : `rgba(255, 140, 40, ${point.alpha})`;
-      context.arc(x, y, point.size * factor, 0, Math.PI * 2);
-      context.fill();
-
-      // Constellation Links
-      if (index % 19 === 0) {
-        context.strokeStyle = 'rgba(255, 185, 60, 0.16)';
-        context.beginPath();
-        context.moveTo(center, center);
-        context.lineTo(x, y);
-        context.stroke();
-      }
-    });
-
-    // Central Nive Hub Pulse
-    context.beginPath();
-    context.fillStyle = '#ffd200';
-    context.shadowColor = '#ff6a00';
-    context.shadowBlur = 36;
-    context.arc(center, center, 14 * factor, 0, Math.PI * 2);
-    context.fill();
-
-    context.shadowBlur = 0;
-    context.fillStyle = '#080604';
-    context.font = `700 ${Math.max(10, 11 * factor)}px "DM Mono", monospace`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText('N', center, center + 0.5);
-
-    if (!reducedMotion) {
-      requestAnimationFrame(draw);
-    }
+    const progress = Math.min((now - startedAt) / duration, 1);
+    const eased = 1 - (1 - progress) ** 3;
+    element.textContent = String(Math.round(target * eased));
+    if (progress < 1) requestAnimationFrame(step);
   };
 
-  draw();
+  requestAnimationFrame(step);
+};
+
+if ('IntersectionObserver' in window) {
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const index = counters.indexOf(entry.target);
+      runCounter(entry.target, index);
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.25 });
+  counters.forEach(counter => observer.observe(counter));
+} else {
+  counters.forEach(runCounter);
 }
+
+const sectionLinks = [...document.querySelectorAll('.desktop-nav a[href^="#"], .mobile-menu a[href^="#"]')];
+const sections = [...document.querySelectorAll('#top, #network, #protocol, #architecture, #deployment, #developers, #security')];
+const markActiveSection = id => {
+  sectionLinks.forEach(link => {
+    const active = link.hash === `#${id}`;
+    link.classList.toggle('is-active', active);
+    if (active) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
+  });
+};
+
+if ('IntersectionObserver' in window && sections.length) {
+  const sectionObserver = new IntersectionObserver(entries => {
+    const visible = entries.filter(entry => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (visible) markActiveSection(visible.target.id);
+  }, { rootMargin: '-20% 0px -65% 0px', threshold: [0, 0.1, 0.3, 0.6] });
+  sections.forEach(section => sectionObserver.observe(section));
+}
+
+const copyButton = document.querySelector('#copyCode');
+const quickstartCode = document.querySelector('#quickstartCode');
+copyButton?.addEventListener('click', async () => {
+  if (!quickstartCode || !navigator.clipboard) return;
+  const originalText = copyButton.textContent;
+  try {
+    await navigator.clipboard.writeText(quickstartCode.textContent.trim());
+    copyButton.textContent = 'Copied';
+    window.setTimeout(() => { copyButton.textContent = originalText; }, 1600);
+  } catch {
+    copyButton.textContent = 'Copy unavailable';
+    window.setTimeout(() => { copyButton.textContent = originalText; }, 2000);
+  }
+});
