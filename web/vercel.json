@@ -2,6 +2,8 @@
   "name": "nive-protocol",
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/health", "destination": "https://nive-protocol.onrender.com/health" },
+    { "source": "/api/:path*", "destination": "https://nive-protocol.onrender.com/api/:path*" },
     { "source": "/explorer", "destination": "/explorer.html" },
     { "source": "/app", "destination": "/explorer.html" }
   ]
