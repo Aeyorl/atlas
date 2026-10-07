@@ -95,6 +95,18 @@ if ('IntersectionObserver' in window && sections.length) {
 }
 
 const copyButton = document.querySelector('#copyCode');
+const copyTokenCa = document.querySelector('#copyTokenCa');
+copyTokenCa?.addEventListener('click', async () => {
+  if (!navigator.clipboard) return;
+  try {
+    await navigator.clipboard.writeText(copyTokenCa.dataset.address);
+    copyTokenCa.textContent = 'Copied';
+    window.setTimeout(() => { copyTokenCa.textContent = 'Copy'; }, 1600);
+  } catch {
+    copyTokenCa.textContent = 'Unavailable';
+    window.setTimeout(() => { copyTokenCa.textContent = 'Copy'; }, 2000);
+  }
+});
 const quickstartCode = document.querySelector('#quickstartCode');
 copyButton?.addEventListener('click', async () => {
   if (!quickstartCode || !navigator.clipboard) return;
