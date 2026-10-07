@@ -1293,6 +1293,9 @@ body {
 .brand-tag { color: #777181; font-size: .58rem; }
 .btn-back-home { margin-left: 2px; padding: 6px 10px; color: #b4aebd; }
 .btn-back-home:hover { color: #fff; }
+.explorer-github-link { display: inline-flex; align-items: center; gap: 7px; margin-left: 0; }
+.explorer-github-link i { font-size: .78rem; }
+.explorer-github-link:focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 3px; }
 .header-right { gap: 9px; }
 .network-select { max-width: 100%; min-height: 42px; padding-inline: 13px 34px; border-radius: 10px; color: #eee9f1; }
 .connection-status-pill { min-height: 38px; padding-inline: 13px; border-radius: 999px; color: #f0c53c; }
